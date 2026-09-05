@@ -414,17 +414,33 @@ describe("runSeasonDiscordSync", () => {
     );
     expect(notCategory.calls).toEqual([]);
 
-    const noMembers = fakeDiscord({ fail: { fetchGuildMembers: 403 } });
-    report = await run(
-      noMembers,
-      fakeStore({ groups: [G1A], players: [alice] }),
-    );
-    expect(report.error).toBe("Mitgliederliste nicht abrufbar (HTTP 403)");
-    expect(noMembers.calls).toEqual([]);
+    const noRoles = fakeDiscord({ fail: { fetchGuildRoles: 403 } });
+    report = await run(noRoles, fakeStore({ groups: [G1A], players: [alice] }));
+    expect(report.error).toBe("Rollen nicht abrufbar (HTTP 403)");
+    expect(noRoles.calls).toEqual([]);
     expect(report).toMatchObject({
       groupsTotal: 1,
       playersTotal: 1,
       groupsReady: 0,
+    });
+  });
+
+  it("still sets up roles and channels when the member list is unavailable", async () => {
+    // A bot without the Server Members Intent: 403 on the member list only.
+    const discord = fakeDiscord({ fail: { fetchGuildMembers: 403 } });
+    const store = fakeStore({ groups: [G1A], players: [alice] });
+    const report = await run(discord, store);
+    expect(discord.calls).toEqual([
+      "create_role Division 1a",
+      "create_channel division-1a in cat",
+      "overwrite chan-2 bot",
+      "overwrite chan-2 role-1",
+      "overwrite chan-2 guild",
+    ]);
+    expect(report).toMatchObject({
+      groupsReady: 1,
+      playersReady: 0,
+      error: "Mitgliederliste nicht abrufbar (HTTP 403)",
     });
   });
 

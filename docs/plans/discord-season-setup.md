@@ -212,10 +212,10 @@ Migrations: generated (tables + enum) plus custom
   Discord-Mitgliedschaft feature already reports them.
 - `converge.ts` — `syncSeasonDiscord(windowId)`: loads desired state
   (placed identities + group names), reads current state from Discord
-  (category → guild, bot user, guild roles, guild channels, member list with
-  roles: 5 calls), runs the plan, executes operations **sequentially** in a
-  fixed order (per group: role → channel → overwrites; then member role
-  removals, then additions), recording
+  (category → guild, bot user, guild roles, guild channels: 4 calls), runs
+  the plan, executes operations **sequentially** in a fixed order (per
+  group: role → channel → overwrites; then, after fetching the member list
+  with roles, member role removals, then additions), recording
   created resources in the table **immediately** after each create so an
   interrupted run never creates duplicates, then stores the report. Every
   entry point catches, logs with a `[discord-season]` prefix, stores the

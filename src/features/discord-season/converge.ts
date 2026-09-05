@@ -142,11 +142,6 @@ export async function runSeasonDiscordSync(
       fail(`Kanäle nicht abrufbar (HTTP ${channels.status})`);
       return await finish();
     }
-    const members = await discord.fetchGuildMembers(guildId);
-    if (!members.ok) {
-      fail(`Mitgliederliste nicht abrufbar (HTTP ${members.status})`);
-      return await finish();
-    }
     if (!roles.roles.some((role) => role.id === config.buliRoleId)) {
       fail("Die konfigurierte Buli-Spieler-Rolle existiert nicht");
       return await finish();
@@ -253,6 +248,14 @@ export async function runSeasonDiscordSync(
     }
 
     // --- Member roles ----------------------------------------------------
+    // Fetched only now: roles and channels do not depend on the member list,
+    // so a bot without the Server Members Intent (its 403 lands here) still
+    // sets the season up and the report names the one thing left to fix.
+    const members = await discord.fetchGuildMembers(guildId);
+    if (!members.ok) {
+      fail(`Mitgliederliste nicht abrufbar (HTTP ${members.status})`);
+      return await finish();
+    }
     const memberPlan = planMemberRoles({
       players,
       buliRoleId: config.buliRoleId,

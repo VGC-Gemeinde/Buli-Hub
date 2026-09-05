@@ -27,6 +27,7 @@ import {
   SEED_SHEET_A,
   SEED_SHEET_B,
 } from "@/features/dev/teamsheets";
+import { DiscordSeasonCard } from "@/features/discord-season/components/discord-season-card";
 import { DropBanner } from "@/features/drops/components/drop-banner";
 import { DropsSection } from "@/features/drops/components/drops-section";
 import { ProfileStaffPanel } from "@/features/drops/components/profile-staff-panel";
@@ -2591,6 +2592,37 @@ export function Gallery() {
               <GateBody seasonNumber={9} />
             </DialogWidth>
           </Dialog>
+        </Specimen>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-2xl">Discord-Saison (Rollen & Gruppenkanäle)</h2>
+        <Specimen label="Staff — Abweichung (Fehler, fehlende Gruppe, übersprungene Spieler)">
+          <DiscordSeasonCard
+            view={{
+              kind: "attention",
+              ranAt: new Date("2026-09-06T18:05:00+02:00"),
+              groups: { ready: 3, total: 4 },
+              players: { ready: 37, total: 40 },
+              error:
+                "Kanal für Division 2b konnte nicht angelegt werden (HTTP 403)",
+              skipped: [
+                { name: "Alice", reason: "no_discord_id" },
+                { name: "Bob", reason: "error" },
+              ],
+            }}
+          />
+        </Specimen>
+        <Specimen label="Staff — Abgleich läuft nicht (letzter Lauf über eine Stunde her)">
+          <DiscordSeasonCard
+            view={{
+              kind: "stale",
+              ranAt: new Date("2026-09-06T09:40:00+02:00"),
+            }}
+          />
+        </Specimen>
+        <Specimen label="Staff — noch kein Abgleich (Button ohne Staff-Login wirkungslos)">
+          <DiscordSeasonCard view={{ kind: "never" }} />
         </Specimen>
       </section>
 

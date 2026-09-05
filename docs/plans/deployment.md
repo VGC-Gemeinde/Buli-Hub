@@ -59,8 +59,9 @@ other environment; no staging, no preview deploys.
   the open decision is removed.
 
 **Out (deferred):**
-- Cloud Scheduler (no scheduled routes exist yet — wire it with the first
-  feature that needs one).
+- Cloud Scheduler — wired later by the first scheduled route, the Discord
+  season sync (docs/plans/discord-season-setup.md; setup in
+  docs/deployment.md §8).
 - Staging/preview environments, e2e smoke tests, Sentry-style APM.
 - Supabase Storage setup (unused so far).
 

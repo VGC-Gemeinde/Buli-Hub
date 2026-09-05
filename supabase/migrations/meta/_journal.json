@@ -113,6 +113,20 @@
       "when": 1788293374214,
       "tag": "20260901200934_schedule_publish_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788649705511,
+      "tag": "20260905230825_discord_season_setup",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788649712105,
+      "tag": "20260905230832_discord_season_fk_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,12 @@
 # Discord season setup (Saison-Rollen und Gruppenkanäle)
 
 **Status: implemented** (2026-09-06) — unit/integration tests, typecheck,
-production build. Still open: the first run against the test server from
-staging (roles, channels, permissions as a member with and without the group
-role) and the Cloud Scheduler jobs, see docs/deployment.md §8.
+production build; verified on staging against the test server: the job
+route authorizes correctly, the first run created 17 group roles and
+channels, the second run changed nothing. Cloud Scheduler jobs exist for
+both environments (docs/deployment.md §8). Still open: the member phase on
+the test server (the test bot needs the Server Members Intent), and the
+first production run.
 
 Publishing the Spielplan ("Pairings veröffentlichen", docs/plans/schedule-publish.md)
 is the moment the season becomes real for players. This feature makes the

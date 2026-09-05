@@ -677,6 +677,15 @@ the production URL, named `discord-season-sync`. The header is stored in
 the job, so rotating the secret means updating the job
 (`gcloud scheduler jobs update http … --update-headers …`).
 
+**First run on a season that is already published.** The inline sync only
+fires on "Pairings veröffentlichen"; when the feature meets a running
+season, the first run is the one that creates every role and channel,
+assigns 100+ players and strips the Buli-Spieler role from everyone else.
+Keep the production job paused (`gcloud scheduler jobs pause
+discord-season-sync --location europe-west1`) until staff have triggered
+that first run deliberately via "Jetzt abgleichen" on `/staff` and checked
+the server; then `gcloud scheduler jobs resume …`.
+
 **Verification:** `curl -X POST -H "Authorization: Bearer …"
 https://…/api/jobs/discord-season-sync` answers the sync report as JSON
 (`{"skipped": …}` before a published schedule or without the ids). A wrong

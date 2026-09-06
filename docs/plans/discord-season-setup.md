@@ -91,7 +91,7 @@ Names are display only; the tracked ids are what the hub relies on.
 
 - group role: `Division 1a` (`subDivisionName`), mentionable, not hoisted,
   no colour;
-- group channel: `division-1a` (Discord lowercases text channel names).
+- group channel: `💬-div-1a-chat-💬`, the league's channel convention.
 
 Pure helpers `groupRoleName(tier, position)` and `groupChannelName(tier,
 position)`. Names are set once at creation and never enforced afterwards:

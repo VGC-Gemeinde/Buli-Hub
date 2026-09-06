@@ -16,9 +16,9 @@ describe("group names", () => {
     expect(groupRoleName(2, 2)).toBe("Division 2c");
   });
 
-  it("derives a channel name Discord accepts as-is", () => {
-    expect(groupChannelName(1, 0)).toBe("division-1a");
-    expect(groupChannelName(3, 1)).toBe("division-3b");
+  it("names the channel after the league convention", () => {
+    expect(groupChannelName(1, 0)).toBe("💬-div-1a-chat-💬");
+    expect(groupChannelName(3, 1)).toBe("💬-div-3b-chat-💬");
   });
 });
 

@@ -166,12 +166,12 @@ describe("runSeasonDiscordSync", () => {
 
     expect(discord.calls).toEqual([
       "create_role Division 1a",
-      "create_channel division-1a in cat",
+      "create_channel 💬-div-1a-chat-💬 in cat",
       "overwrite chan-2 bot",
       "overwrite chan-2 role-1",
       "overwrite chan-2 guild",
       "create_role Division 1b",
-      "create_channel division-1b in cat",
+      "create_channel 💬-div-1b-chat-💬 in cat",
       "overwrite chan-4 bot",
       "overwrite chan-4 role-3",
       "overwrite chan-4 guild",
@@ -271,7 +271,7 @@ describe("runSeasonDiscordSync", () => {
     await run(discord, store);
 
     expect(discord.calls).toEqual([
-      "create_channel division-1a in cat",
+      "create_channel 💬-div-1a-chat-💬 in cat",
       "overwrite chan-1 bot",
       "overwrite chan-1 r1a",
       "overwrite chan-1 guild",
@@ -336,7 +336,7 @@ describe("runSeasonDiscordSync", () => {
     // members still get what exists (Buli-Spieler + the 1a role).
     expect(discord.calls).toEqual([
       "create_role Division 1a",
-      "create_channel division-1a in cat",
+      "create_channel 💬-div-1a-chat-💬 in cat",
       "add d-alice buli",
       "add d-alice role-1",
     ]);
@@ -432,7 +432,7 @@ describe("runSeasonDiscordSync", () => {
     const report = await run(discord, store);
     expect(discord.calls).toEqual([
       "create_role Division 1a",
-      "create_channel division-1a in cat",
+      "create_channel 💬-div-1a-chat-💬 in cat",
       "overwrite chan-2 bot",
       "overwrite chan-2 role-1",
       "overwrite chan-2 guild",

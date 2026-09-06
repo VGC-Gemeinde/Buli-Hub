@@ -26,7 +26,7 @@ import {
 import { formatGermanDay } from "@/lib/german-time";
 import { cn } from "@/lib/utils";
 import { reportMatch } from "../actions";
-import type { Platform } from "../report";
+import { isHttpsUrl, type Platform } from "../report";
 
 function isReplayUrl(value: string): boolean {
   try {
@@ -272,7 +272,7 @@ export function ReportForm({
   }
   if (
     platform === "cartridge" &&
-    (proofRequired ? !isReplayUrl(video) : video !== "" && !isReplayUrl(video))
+    (proofRequired ? !isHttpsUrl(video) : video !== "" && !isHttpsUrl(video))
   ) {
     missing.push("Video-Link");
   }

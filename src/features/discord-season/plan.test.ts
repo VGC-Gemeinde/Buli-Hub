@@ -24,7 +24,7 @@ describe("planGroupResources", () => {
       {
         subDivisionId: "sd-1a",
         role: { status: "create", name: "Division 1a" },
-        channel: { status: "create", name: "division-1a" },
+        channel: { status: "create", name: "💬-div-1a-chat-💬" },
       },
     ]);
   });
@@ -60,7 +60,10 @@ describe("planGroupResources", () => {
       liveChannelIds: new Set(), // channel deleted by a moderator
     });
     expect(plan.role).toEqual({ status: "exists", id: "r1" });
-    expect(plan.channel).toEqual({ status: "create", name: "division-1a" });
+    expect(plan.channel).toEqual({
+      status: "create",
+      name: "💬-div-1a-chat-💬",
+    });
   });
 
   it("plans every group independently, in order", () => {

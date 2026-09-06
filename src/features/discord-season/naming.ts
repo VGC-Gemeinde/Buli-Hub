@@ -1,4 +1,7 @@
-import { subDivisionName } from "@/features/seeding/seeding";
+import {
+  subDivisionName,
+  subDivisionShortName,
+} from "@/features/seeding/seeding";
 import type { ChannelOverwrite } from "@/lib/discord";
 
 // Display names for the per-season Discord objects. Set once at creation and
@@ -10,9 +13,9 @@ export function groupRoleName(tier: number, position: number): string {
   return subDivisionName(tier, position);
 }
 
-// "division-1a" — Discord lowercases text channel names and replaces spaces.
+// "💬-div-1a-chat-💬" — the league's channel naming convention.
 export function groupChannelName(tier: number, position: number): string {
-  return subDivisionName(tier, position).toLowerCase().replace(/\s+/g, "-");
+  return `💬-div-${subDivisionShortName(tier, position)}-chat-💬`;
 }
 
 // Discord permission bit for View Channel (1 << 10), as the decimal string

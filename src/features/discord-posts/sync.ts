@@ -10,21 +10,18 @@ import {
   editChannelMessage,
   postChannelMessage,
 } from "@/lib/discord";
+import { resultChannelFor, resultChannels } from "./channels";
 import { motwVodMessage, resultMessage, shouldPostResult } from "./messages";
 import { deletePostRow, getPost, type PostKind, upsertPost } from "./queries";
 
-// Best-effort convergence of the Discord results channel onto the hub's
-// public state: one message per match and kind — posted, edited, or deleted
-// so the channel always matches what the hub shows openly. Called by the
-// reporting/MotW actions after their DB write; every entry point catches and
-// logs, a Discord outage never fails an action. Without
-// DISCORD_RESULTS_CHANNEL_ID nothing is posted at all (local dev stays
-// silent); without APP_BASE_URL posts simply carry no hub link.
-
-function configuredChannel(): string | null {
-  const id = process.env.DISCORD_RESULTS_CHANNEL_ID;
-  return id && id.length > 0 ? id : null;
-}
+// Best-effort convergence of the Discord result channels onto the hub's
+// public state: one message per match and kind — posted, edited, moved, or
+// deleted so the channels always match what the hub shows openly. Which
+// channel a post belongs to is `channels.ts` (by division tier; the MotW
+// announcements have their own). Called by the reporting/MotW actions after
+// their DB write; every entry point catches and logs, a Discord outage never
+// fails an action. Without the channel ids nothing is posted at all (local
+// dev stays silent); without APP_BASE_URL posts simply carry no hub link.
 
 // The public paste for a player's sheet, absolute. Null when the sheet is
 // missing (free win) or APP_BASE_URL is unset — the message then omits the
@@ -44,8 +41,11 @@ function matchUrl(matchId: string): string | null {
     : null;
 }
 
-// Post, edit, or re-post (self-healing on a 404 — the message was deleted on
-// Discord) so the stored message shows `content`.
+// Post, edit, or re-post so the stored message shows `content` in
+// `channelId`. Re-posts on a 404 (the message was deleted on Discord) and
+// when the stored message sits in another channel (the routing changed,
+// or the post landed in the wrong channel): a post in the wrong channel is
+// a mismatch like any other, so it is deleted there and posted afresh.
 async function putMessage(
   kind: PostKind,
   matchId: string,
@@ -53,7 +53,16 @@ async function putMessage(
   content: string,
 ): Promise<void> {
   const post = await getPost(kind, matchId);
-  if (post) {
+  if (post && post.channelId !== channelId) {
+    const deleted = await deleteChannelMessage(post.channelId, post.messageId);
+    if (!deleted.ok && deleted.status !== 404) {
+      console.error(
+        `[discord-posts] move failed (${deleted.status}) for ${kind}/${matchId}`,
+      );
+      return;
+    }
+    // Fall through to a fresh post; upsertPost re-points the row.
+  } else if (post) {
     const edited = await editChannelMessage(
       post.channelId,
       post.messageId,
@@ -101,8 +110,8 @@ async function dropMessage(kind: PostKind, matchId: string): Promise<void> {
 // result (and the match is not the Match of the Week), deleted otherwise.
 export async function syncResultPost(matchId: string): Promise<void> {
   try {
-    const channelId = configuredChannel();
-    if (!channelId) {
+    const channels = resultChannels();
+    if (!channels) {
       return;
     }
     const match = await getMatchForReport(matchId);
@@ -159,7 +168,12 @@ export async function syncResultPost(matchId: string): Promise<void> {
       corrected: result.correctedAt !== null,
       matchUrl: matchUrl(matchId),
     });
-    await putMessage("result", matchId, channelId, content);
+    await putMessage(
+      "result",
+      matchId,
+      resultChannelFor(match.tier, channels),
+      content,
+    );
   } catch (error) {
     console.error("[discord-posts] syncResultPost failed", error);
   }
@@ -170,8 +184,8 @@ export async function syncResultPost(matchId: string): Promise<void> {
 // contains the result.
 export async function syncMotwVodPost(matchId: string): Promise<void> {
   try {
-    const channelId = configuredChannel();
-    if (!channelId) {
+    const channels = resultChannels();
+    if (!channels) {
       return;
     }
     const match = await getMatchForReport(matchId);
@@ -191,7 +205,7 @@ export async function syncMotwVodPost(matchId: string): Promise<void> {
       youtubeUrl: selection.youtubeUrl,
       matchUrl: matchUrl(matchId),
     });
-    await putMessage("motw_vod", matchId, channelId, content);
+    await putMessage("motw_vod", matchId, channels.motw, content);
   } catch (error) {
     console.error("[discord-posts] syncMotwVodPost failed", error);
   }

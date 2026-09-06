@@ -2,21 +2,21 @@
 
 **Status: done** (2026-07-05) — `discord_posts` schema, message builders,
 converge sync, hooks in all reporting/MotW actions, env template. Verified
-via unit/integration tests, typecheck, and a production build; posting
-against a real channel still needs a manual pass with
-`DISCORD_RESULTS_CHANNEL_ID` pointed at a test channel (maintainer step —
-the local stack has no Discord credentials for it).
+via unit/integration tests, typecheck, and a production build. The split
+into three channels is `docs/plans/discord-result-channels.md`.
 
 ## Context
 
-Match results should reach the community where it lives: a Discord results
-channel. Every publicly visible result gets a message in the historical
+Match results should reach the community where it lives: the Discord result
+channels. Every publicly visible result gets a message in the historical
 community format (pairings readable, score behind Discord spoiler tags, fixed
 message shape). The Match of the Week is excluded — a result post would
 defeat its spoiler protection — and instead gets one announcement when its
-VOD link lands. The channel **mirrors the hub's public state**: one message
-per match, edited or deleted as the state changes, with a message id stored
-per post.
+VOD link lands. The channels **mirror the hub's public state**: one message
+per match, edited, moved or deleted as the state changes, with a message id
+stored per post. Which channel a post belongs to (results of Division 1 and
+2, results of every other division, MotW announcements) is
+`docs/plans/discord-result-channels.md`.
 
 Discord stays a thin output channel (CLAUDE.md): posting is best-effort after
 the DB write and never decides or blocks anything. No UI — this slice is
@@ -39,17 +39,17 @@ schema + logic + action hooks.
   is removed. Never contains the result.
 - **Self-healing**: an edit/delete hitting 404 (message removed on Discord)
   re-posts (result) or drops the row (delete) and stores the new id.
-- Config via env: `DISCORD_RESULTS_CHANNEL_ID` (unset → posting skipped
-  entirely, so local dev stays silent) and `APP_BASE_URL` (unset → posts
-  carry no hub link). Both in `.env.example`; production values via Secret
-  Manager.
+- Config via env: the three channel ids (`discord-result-channels.md`; all
+  unset → posting skipped entirely, so local dev stays silent) and
+  `APP_BASE_URL` (unset → posts carry no hub link). All in `.env.example`;
+  production values on the Cloud Run service.
 
 **Out (deferred):**
 - Retry queue / delivery guarantees — a missed or stale post logs an error
   and self-corrects on the next state change. Discord rate limits (bursts at
   the Spieltag deadline) fall under the same best-effort rule.
-- Embeds, per-post-type channels, pairing announcements, backfill of results
-  reported before this feature ships.
+- Embeds, pairing announcements, backfill of results reported before this
+  feature ships.
 
 ## Message format (community format, hub vocabulary)
 
@@ -94,7 +94,7 @@ Zum Match: <https://…/match/{id}>
 id          uuid PK default random
 kind        enum discord_post_kind: result | motw_vod
 match_id    uuid FK → matches (cascade)
-channel_id  text      -- posts stay editable if the configured channel moves
+channel_id  text      -- where the message is, so it can be edited or moved
 message_id  text
 created_at  timestamptz default now
 updated_at  timestamptz default now
@@ -118,8 +118,8 @@ FK, RLS on, no policies — server-only).
 **Sync (`sync.ts`, best-effort — every entry point catches, logs, returns):**
 - `syncResultPost(matchId)` — loads current state (match, result, MotW flag,
   stored post row), computes `resultPostState`, then converges: post / edit /
-  delete / nothing. Handles 404-heal. Skips entirely without
-  `DISCORD_RESULTS_CHANNEL_ID`.
+  move / delete / nothing. Handles 404-heal. Skips entirely without the
+  channel ids.
 - `syncMotwVodPost(matchId)` — same convergence for the VOD announcement.
 
 **Queries (`queries.ts`, integration-tested):** `getPost(kind, matchId)`,
@@ -144,9 +144,9 @@ bot token, 404 surfaced as a typed outcome (not an exception).
 
 `/dev/report-results?count=5` (linked from `/dev`, dev-only): reports up to
 `count` open matches of the latest season like real player reports —
-including the Discord sync — so the results channel can be exercised end to
-end against a test channel. Without `DISCORD_RESULTS_CHANNEL_ID` it reports
-the results and skips the posting, and says so.
+including the Discord sync — so the result channels can be exercised end to
+end against test channels. Without the channel ids it reports the results
+and skips the posting, and says so.
 
 ## Tests
 
@@ -156,7 +156,7 @@ the results and skips the posting, and says so.
 - Integration: `discord_posts` unique `(kind, match_id)`, row helpers.
 - No tests against the real Discord API; `sync.ts` stays a thin shell around
   tested decisions.
-- Manual: point `DISCORD_RESULTS_CHANNEL_ID` at a test channel; report,
+- Manual: point the channel ids at test channels; report,
   correct, reopen a match; confirm a free win; feature a reported match
   (post disappears), attach/replace/remove a VOD link.
 

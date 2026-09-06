@@ -155,7 +155,7 @@ export default async function DevPage() {
             <span className="font-medium text-sm">5 Ergebnisse melden</span>
             <span className="text-[13px] text-muted-foreground">
               Meldet offene Matches der laufenden Saison wie echte Reports —
-              inkl. Discord-Post, wenn DISCORD_RESULTS_CHANNEL_ID gesetzt ist
+              inkl. Discord-Post, wenn die drei Channel-IDs gesetzt sind
             </span>
           </a>
           <a

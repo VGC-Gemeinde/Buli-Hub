@@ -99,9 +99,9 @@ Three independent concerns, three independent settings:
    production one).
 2. **Role reads** — `DISCORD_GUILD_ID` + `DISCORD_ROLE_ID_DEV` / `_ADMIN` /
    `_STAFF`. Where a user's app role comes from.
-3. **Posting** — `DISCORD_BOT_TOKEN` + channel ids
-   (`DISCORD_RESULTS_CHANNEL_ID`, and one per future channel). Where messages
-   go.
+3. **Posting** — `DISCORD_BOT_TOKEN` + channel ids (the three result
+   channels, `docs/plans/discord-result-channels.md`, and one per future
+   channel). Where messages go.
 
 Because they are independent, needing a test Discord server for *posting*
 does not force *role reads* through that server.

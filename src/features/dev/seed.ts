@@ -13,6 +13,7 @@ import {
   subDivisions,
   teamSheets,
 } from "@/db/schema";
+import { TOP_RESULT_TIERS } from "@/features/discord-posts/channels";
 import { syncResultPost } from "@/features/discord-posts/sync";
 import type {
   Platform,
@@ -499,20 +500,22 @@ async function insertNormalResult(
 
 // Dev-only: reports up to `count` open (unreported, non-bye) matches of the
 // latest season like real player reports — including the Discord result-post
-// sync, so the results channel can be exercised end to end (set
-// DISCORD_RESULTS_CHANNEL_ID; without it the sync is silently skipped).
-// Alternating winners, a 2-0 sweep every third match. Returns how many
-// matches were reported.
+// sync, so the result channels can be exercised end to end (set the three
+// channel ids, see `discord-posts/channels.ts`; without them the sync is
+// silently skipped). Matches alternate between the top divisions and the
+// rest so both result channels see traffic. Alternating winners, a 2-0 sweep
+// every third match. Returns how many matches were reported.
 export async function reportDevResults(count: number): Promise<number> {
   const window = await latestWindow();
   if (!window) {
     return 0;
   }
-  const open = await db
+  const candidates = await db
     .select({
       id: matches.id,
       playerAId: matches.playerAId,
       playerBId: matches.playerBId,
+      tier: divisions.tier,
     })
     .from(matches)
     .innerJoin(subDivisions, eq(subDivisions.id, matches.subDivisionId))
@@ -525,8 +528,19 @@ export async function reportDevResults(count: number): Promise<number> {
         isNull(matchResults.matchId),
       ),
     )
-    .orderBy(asc(matches.round), asc(matches.id))
-    .limit(count);
+    .orderBy(asc(matches.round), asc(matches.id));
+  const top = candidates.filter((m) => m.tier <= TOP_RESULT_TIERS);
+  const rest = candidates.filter((m) => m.tier > TOP_RESULT_TIERS);
+  const open: typeof candidates = [];
+  while (open.length < count && (top.length > 0 || rest.length > 0)) {
+    const next =
+      open.length % 2 === 0
+        ? (top.shift() ?? rest.shift())
+        : (rest.shift() ?? top.shift());
+    if (next) {
+      open.push(next);
+    }
+  }
 
   let index = 0;
   for (const match of open) {

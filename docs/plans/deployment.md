@@ -74,7 +74,7 @@ other environment; no staging, no preview deploys.
 | `DISCORD_BOT_TOKEN` | Cloud Run | yes |
 | `NEXT_PUBLIC_SUPABASE_URL` / `..._PUBLISHABLE_KEY` | image build args | no |
 | `DISCORD_GUILD_ID`, `DISCORD_ROLE_ID_{DEV,ADMIN,STAFF}`, `DISCORD_ROLE_ID_MOTW` (optional) | Cloud Run env | no |
-| `DISCORD_RESULTS_CHANNEL_ID` | Cloud Run env | no |
+| `DISCORD_RESULTS_TOP_CHANNEL_ID`, `DISCORD_RESULTS_CHANNEL_ID`, `DISCORD_MOTW_CHANNEL_ID` | Cloud Run env | no |
 | `APP_BASE_URL` | Cloud Run env | no |
 
 ## Verification (the dress rehearsal, from the launch checklist)

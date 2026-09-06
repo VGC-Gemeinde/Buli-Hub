@@ -94,7 +94,7 @@ gcloud run deploy buli-hub --image <first image> --region europe-west1 \
   --no-invoker-iam-check \
   --min-instances=1 --max-instances=3 --memory=512Mi \
   --set-secrets=DATABASE_URL=DATABASE_URL:latest,SUPABASE_SECRET_KEY=SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN:latest,JOBS_SECRET=JOBS_SECRET:latest \
-  --set-env-vars=APP_BASE_URL=https://<DOMAIN>,DISCORD_GUILD_ID=…,DISCORD_ROLE_ID_DEV=…,DISCORD_ROLE_ID_ADMIN=…,DISCORD_ROLE_ID_STAFF=…,DISCORD_ROLE_ID_MOTW=…,DISCORD_RESULTS_CHANNEL_ID=…,DISCORD_FEEDBACK_FORUM_CHANNEL_ID=…,DISCORD_FEEDBACK_TAG_BUG=…,DISCORD_FEEDBACK_TAG_IDEA=…,DISCORD_LEAGUE_CATEGORY_ID=…,DISCORD_ROLE_ID_BULI_PLAYER=…
+  --set-env-vars=APP_BASE_URL=https://<DOMAIN>,DISCORD_GUILD_ID=…,DISCORD_ROLE_ID_DEV=…,DISCORD_ROLE_ID_ADMIN=…,DISCORD_ROLE_ID_STAFF=…,DISCORD_ROLE_ID_MOTW=…,DISCORD_RESULTS_TOP_CHANNEL_ID=…,DISCORD_RESULTS_CHANNEL_ID=…,DISCORD_MOTW_CHANNEL_ID=…,DISCORD_FEEDBACK_FORUM_CHANNEL_ID=…,DISCORD_FEEDBACK_TAG_BUG=…,DISCORD_FEEDBACK_TAG_IDEA=…,DISCORD_LEAGUE_CATEGORY_ID=…,DISCORD_ROLE_ID_BULI_PLAYER=…
 ```
 
 `min-instances=1` during the season (no cold starts); drop to 0 off-season.
@@ -477,7 +477,7 @@ gcloud run deploy buli-hub-staging --image <first image> --region europe-west1 \
   --no-invoker-iam-check \
   --min-instances=0 --max-instances=2 --memory=512Mi \
   --set-secrets=DATABASE_URL=STAGING_DATABASE_URL_POOLER:latest,SUPABASE_SECRET_KEY=STAGING_SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN_TEST:latest,JOBS_SECRET=JOBS_SECRET_STAGING:latest \
-  --set-env-vars=APP_ENV=staging,APP_BASE_URL=https://<staging-url>,ENABLE_DEV_TOOLS=true,DEV_TOOLS_TOKEN=<long random string>,DISCORD_RESULTS_CHANNEL_ID=<test server channel>,DISCORD_LEAGUE_CATEGORY_ID=<test server category>,DISCORD_ROLE_ID_BULI_PLAYER=<test server role>
+  --set-env-vars=APP_ENV=staging,APP_BASE_URL=https://<staging-url>,ENABLE_DEV_TOOLS=true,DEV_TOOLS_TOKEN=<long random string>,DISCORD_RESULTS_TOP_CHANNEL_ID=<test server channel>,DISCORD_RESULTS_CHANNEL_ID=<test server channel>,DISCORD_MOTW_CHANNEL_ID=<test server channel>,DISCORD_LEAGUE_CATEGORY_ID=<test server category>,DISCORD_ROLE_ID_BULI_PLAYER=<test server role>
 ```
 
 Differences from production, each for a reason:

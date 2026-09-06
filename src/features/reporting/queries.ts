@@ -52,6 +52,7 @@ export async function getMatchForReport(matchId: string): Promise<{
   matchId: string;
   round: number;
   subDivisionId: string;
+  tier: number;
   groupName: string;
   deadline: string | null;
   proofRequired: boolean;
@@ -118,6 +119,7 @@ export async function getMatchForReport(matchId: string): Promise<{
     matchId: match.id,
     round: match.round,
     subDivisionId: match.subDivisionId,
+    tier: match.tier,
     groupName: subDivisionName(match.tier, match.position),
     deadline: matchday?.endsOn ?? null,
     proofRequired,

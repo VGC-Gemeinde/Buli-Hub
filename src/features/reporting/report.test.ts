@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveSeries,
+  isHttpsUrl,
   type ReportInput,
   reportSchema,
   toResultRows,
@@ -32,6 +33,26 @@ function normal(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+// The form gates the cartridge video field on this too, so a YouTube link
+// must pass: only the protocol matters, never the host.
+describe("isHttpsUrl", () => {
+  it("accepts any https link, YouTube included", () => {
+    expect(isHttpsUrl("https://www.youtube.com/watch?v=VkOD8wPFftg")).toBe(
+      true,
+    );
+    expect(isHttpsUrl("https://youtu.be/VkOD8wPFftg")).toBe(true);
+    expect(isHttpsUrl("https://replay.pokemonshowdown.com/gen9vgc-1")).toBe(
+      true,
+    );
+  });
+
+  it("rejects http, bare text and empty input", () => {
+    expect(isHttpsUrl("http://www.youtube.com/watch?v=x")).toBe(false);
+    expect(isHttpsUrl("youtube.com/watch?v=x")).toBe(false);
+    expect(isHttpsUrl("")).toBe(false);
+  });
+});
 
 describe("deriveSeries", () => {
   const s = (winners: string[]) => deriveSeries(winners, "a", "b");

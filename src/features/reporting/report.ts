@@ -8,7 +8,7 @@ import { type matchOutcomeEnum, platformEnum } from "@/db/schema";
 export type Platform = (typeof platformEnum.enumValues)[number];
 export type MatchOutcome = (typeof matchOutcomeEnum.enumValues)[number];
 
-function isHttpsUrl(value: string): boolean {
+export function isHttpsUrl(value: string): boolean {
   try {
     return new URL(value).protocol === "https:";
   } catch {

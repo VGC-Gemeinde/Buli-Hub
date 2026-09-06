@@ -8,6 +8,10 @@ import { SectionHeader } from "@/components/section-header";
 import { SiteHeader } from "@/components/site-header";
 import { Tick } from "@/components/tick";
 import { Button } from "@/components/ui/button";
+import { DiscordSeasonCard } from "@/features/discord-season/components/discord-season-card";
+import { seasonDiscordConfig } from "@/features/discord-season/config";
+import { getSyncState } from "@/features/discord-season/queries";
+import { cardView, needsAttention } from "@/features/discord-season/report";
 import { DropsSection } from "@/features/drops/components/drops-section";
 import { listDropCandidates, listDrops } from "@/features/drops/queries";
 import { MembershipList } from "@/features/membership/components/membership-list";
@@ -201,6 +205,19 @@ export default async function StaffPage() {
           }
         : null;
 
+    // regular_season: the Discord card, only while the last sync says the
+    // server does not match the league (docs/plans/discord-season-setup.md).
+    // Read from the stored report — the page never talks to Discord.
+    const discordSyncState =
+      phase === "regular_season" && seasonDiscordConfig() !== null
+        ? await getSyncState(window.id)
+        : undefined;
+    const now = new Date();
+    const discordView =
+      discordSyncState !== undefined && needsAttention(discordSyncState, now)
+        ? cardView(discordSyncState, now)
+        : null;
+
     return (
       <div className="flex flex-1 flex-col">
         <SiteHeader />
@@ -221,6 +238,7 @@ export default async function StaffPage() {
               week={week}
             />
             {publishFacts ? <PublishScheduleCard facts={publishFacts} /> : null}
+            {discordView ? <DiscordSeasonCard view={discordView} /> : null}
             {todo ? <MotwTodoCard todo={todo} /> : null}
             {nonMemberCount > 0 ? (
               <MembershipWarningCard

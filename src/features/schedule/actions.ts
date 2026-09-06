@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { syncSeasonDiscord } from "@/features/discord-season/converge";
 import { currentUser } from "@/features/roles/guard";
 import { roleAtLeast } from "@/features/roles/roles";
 import { getSeeding } from "@/features/seeding/queries";
@@ -124,5 +125,10 @@ export async function publishSchedule(): Promise<ScheduleResult> {
   // The whole app changes at once: landing → Liga-Übersicht, header nav,
   // Spieler-Dashboard, profile, staff hub.
   revalidatePath("/", "layout");
+  // Then the Discord server follows: group roles, group channels, player
+  // roles. Best-effort and after the publish, so it can neither delay nor
+  // block the season; whatever it does not manage, the periodic sync and
+  // the staff card's button finish (docs/plans/discord-season-setup.md).
+  await syncSeasonDiscord(window.id);
   return { ok: true };
 }

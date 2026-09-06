@@ -142,7 +142,9 @@ export function PublishScheduleDialog({
           <DialogDescription>
             Der Spielplan wird für alle sichtbar: Startseite, Spieler-Dashboard
             und Profile zeigen die Paarungen, und Ergebnisse können gemeldet
-            werden. Das kann nicht rückgängig gemacht werden.
+            werden. Auf Discord werden Gruppenrollen und Gruppenkanäle angelegt
+            und die Spieler zugeordnet, das kann ein paar Minuten dauern. Das
+            kann nicht rückgängig gemacht werden.
           </DialogDescription>
         </DialogHeader>
 

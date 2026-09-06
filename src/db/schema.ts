@@ -456,6 +456,41 @@ export const discordPosts = pgTable(
   (table) => [unique().on(table.kind, table.matchId)],
 );
 
+// What the hub created on Discord for a sub-division of a season: its group
+// role or its private group channel (docs/plans/discord-season-setup.md).
+export const discordSeasonResourceKindEnum = pgEnum(
+  "discord_season_resource_kind",
+  ["group_role", "group_channel"],
+);
+
+// Roles and channels the season setup created on Discord, tracked by id so
+// the post-season cleanup can delete them regardless of renames. One row per
+// sub-division and kind; a row is replaced when the sync recreates a resource
+// whose Discord object disappeared. FKs + RLS in a custom migration.
+export const discordSeasonResources = pgTable(
+  "discord_season_resources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    windowId: uuid("window_id").notNull(),
+    subDivisionId: uuid("sub_division_id").notNull(),
+    kind: discordSeasonResourceKindEnum("kind").notNull(),
+    discordId: text("discord_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [unique().on(table.subDivisionId, table.kind)],
+);
+
+// The last Discord season sync per window: when it ran and what it found
+// (the SeasonDiscordReport, validated with zod on read). Overwritten by every
+// run; the staff dashboard reads this row instead of talking to Discord.
+export const discordSeasonSyncState = pgTable("discord_season_sync_state", {
+  windowId: uuid("window_id").primaryKey(),
+  ranAt: timestamp("ran_at", { withTimezone: true }).notNull(),
+  report: jsonb("report").$type<unknown>().notNull(),
+});
+
 export const disputeStatusEnum = pgEnum("dispute_status", ["open", "resolved"]);
 export const disputeResolutionEnum = pgEnum("dispute_resolution", [
   "upheld", // the reported result stands

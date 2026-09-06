@@ -80,6 +80,7 @@ gcloud iam service-accounts add-iam-policy-binding \
 printf '%s' '<value>' | gcloud secrets create DATABASE_URL --data-file=-          # transaction pooler, port 6543
 printf '%s' '<value>' | gcloud secrets create SUPABASE_SECRET_KEY --data-file=-
 printf '%s' '<value>' | gcloud secrets create DISCORD_BOT_TOKEN --data-file=-
+openssl rand -hex 32 | tr -d '\n' | gcloud secrets create JOBS_SECRET --data-file=-   # scheduled job routes, see §8
 # Grant the *runtime* service account access:
 gcloud secrets add-iam-policy-binding DATABASE_URL \
   --member="serviceAccount:<PROJECT_NUMBER>-compute@developer.gserviceaccount.com" \
@@ -92,8 +93,8 @@ gcloud secrets add-iam-policy-binding DATABASE_URL \
 gcloud run deploy buli-hub --image <first image> --region europe-west1 \
   --no-invoker-iam-check \
   --min-instances=1 --max-instances=3 --memory=512Mi \
-  --set-secrets=DATABASE_URL=DATABASE_URL:latest,SUPABASE_SECRET_KEY=SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN:latest \
-  --set-env-vars=APP_BASE_URL=https://<DOMAIN>,DISCORD_GUILD_ID=…,DISCORD_ROLE_ID_DEV=…,DISCORD_ROLE_ID_ADMIN=…,DISCORD_ROLE_ID_STAFF=…,DISCORD_ROLE_ID_MOTW=…,DISCORD_RESULTS_CHANNEL_ID=…,DISCORD_FEEDBACK_FORUM_CHANNEL_ID=…,DISCORD_FEEDBACK_TAG_BUG=…,DISCORD_FEEDBACK_TAG_IDEA=…
+  --set-secrets=DATABASE_URL=DATABASE_URL:latest,SUPABASE_SECRET_KEY=SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN:latest,JOBS_SECRET=JOBS_SECRET:latest \
+  --set-env-vars=APP_BASE_URL=https://<DOMAIN>,DISCORD_GUILD_ID=…,DISCORD_ROLE_ID_DEV=…,DISCORD_ROLE_ID_ADMIN=…,DISCORD_ROLE_ID_STAFF=…,DISCORD_ROLE_ID_MOTW=…,DISCORD_RESULTS_CHANNEL_ID=…,DISCORD_FEEDBACK_FORUM_CHANNEL_ID=…,DISCORD_FEEDBACK_TAG_BUG=…,DISCORD_FEEDBACK_TAG_IDEA=…,DISCORD_LEAGUE_CATEGORY_ID=…,DISCORD_ROLE_ID_BULI_PLAYER=…
 ```
 
 `min-instances=1` during the season (no cold starts); drop to 0 off-season.
@@ -475,8 +476,8 @@ differentiate.
 gcloud run deploy buli-hub-staging --image <first image> --region europe-west1 \
   --no-invoker-iam-check \
   --min-instances=0 --max-instances=2 --memory=512Mi \
-  --set-secrets=DATABASE_URL=STAGING_DATABASE_URL_POOLER:latest,SUPABASE_SECRET_KEY=STAGING_SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN_TEST:latest \
-  --set-env-vars=APP_ENV=staging,APP_BASE_URL=https://<staging-url>,ENABLE_DEV_TOOLS=true,DEV_TOOLS_TOKEN=<long random string>,DISCORD_RESULTS_CHANNEL_ID=<test server channel>
+  --set-secrets=DATABASE_URL=STAGING_DATABASE_URL_POOLER:latest,SUPABASE_SECRET_KEY=STAGING_SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN_TEST:latest,JOBS_SECRET=JOBS_SECRET_STAGING:latest \
+  --set-env-vars=APP_ENV=staging,APP_BASE_URL=https://<staging-url>,ENABLE_DEV_TOOLS=true,DEV_TOOLS_TOKEN=<long random string>,DISCORD_RESULTS_CHANNEL_ID=<test server channel>,DISCORD_LEAGUE_CATEGORY_ID=<test server category>,DISCORD_ROLE_ID_BULI_PLAYER=<test server role>
 ```
 
 Differences from production, each for a reason:
@@ -490,6 +491,10 @@ Differences from production, each for a reason:
 - `APP_BASE_URL` must be the staging URL, or the "Zum Match" links in Discord
   posts point at production.
 - **No role variables** — see above.
+- `DISCORD_LEAGUE_CATEGORY_ID` / `DISCORD_ROLE_ID_BULI_PLAYER` point at the
+  **test server**: the season setup resolves its guild from the category, so
+  staging creates its roles and channels there. Its Cloud Scheduler job uses
+  its own `JOBS_SECRET_STAGING` (§8).
 - `ENABLE_DEV_TOOLS=true` + `DEV_TOOLS_TOKEN` turn on `/dev` (see below).
 
 ### Getting into `/dev` on staging
@@ -613,3 +618,78 @@ convenience for staging.
 
 (Supabase's own Branching feature seeds branches from migrations and a seed
 file rather than from production data — the opposite of what this is for.)
+
+## 8. Scheduled jobs (Cloud Scheduler)
+
+Route handlers under `/api/jobs/*` are Cloud Scheduler targets, authorized
+by a shared secret the scheduler sends as `Authorization: Bearer
+<JOBS_SECRET>` (`src/lib/jobs.ts`). The routes are idempotent converges, so
+a repeated or overlapping run is harmless. Each environment has its own
+secret and its own jobs; a job never crosses environments because the URL
+and the secret both belong to one service.
+
+### Discord season sync
+
+Keeps the Discord server converged onto the running season: group roles and
+private group channels per sub-division, the Buli-Spieler role on exactly
+the active placed players (docs/plans/discord-season-setup.md). It also
+runs inline when the Spielplan is published and on the staff dashboard's
+"Jetzt abgleichen"; the scheduled run is what catches drops, late joiners
+and hand-edits. Before the schedule is published the route is a no-op.
+
+**Server preparation** (production server and test server alike; role and
+channel ids are not secrets):
+
+1. The bot's role needs **Manage Roles** and **Manage Channels**, and must
+   sit **above** the Buli-Spieler role in the role list (it can only assign
+   roles below its own). Keep it below the staff roles. Not Administrator.
+2. A permanent **league category**. It may contain public channels: the
+   hub denies `@everyone` on each group channel itself. The category's
+   overwrites decide who sees *every* group channel (Liga-Staff,
+   Server-Staff, Admins) and should also allow the bot's role, because
+   channels inherit them at creation.
+3. A permanent, mentionable **Buli-Spieler** role.
+4. The **Server Members Intent** (Developer Portal) stays enabled.
+
+**Environment** (both ids into the service's env, the secret into Secret
+Manager — see the deploy commands in §2 / §7):
+
+```bash
+printf '%s' "$(openssl rand -hex 32)" | gcloud secrets create JOBS_SECRET_STAGING --data-file=-
+gcloud run services update buli-hub-staging --region europe-west1 \
+  --update-secrets=JOBS_SECRET=JOBS_SECRET_STAGING:latest \
+  --update-env-vars=DISCORD_LEAGUE_CATEGORY_ID=<test server category>,DISCORD_ROLE_ID_BULI_PLAYER=<test server role>
+```
+
+**Job** (every 15 minutes; the attempt deadline covers a first full run on
+a fresh season, which is a few minutes of rate-limited role calls):
+
+```bash
+gcloud scheduler jobs create http discord-season-sync-staging \
+  --location europe-west1 --schedule "*/15 * * * *" \
+  --uri "https://<staging-url>/api/jobs/discord-season-sync" \
+  --http-method POST --attempt-deadline 600s \
+  --headers "Authorization=Bearer $(gcloud secrets versions access latest --secret JOBS_SECRET_STAGING)"
+```
+
+Production: the same with `buli-hub`, `JOBS_SECRET`, the production ids and
+the production URL, named `discord-season-sync`. The header is stored in
+the job, so rotating the secret means updating the job
+(`gcloud scheduler jobs update http … --update-headers …`).
+
+**First run on a season that is already published.** The inline sync only
+fires on "Pairings veröffentlichen"; when the feature meets a running
+season, the first run is the one that creates every role and channel,
+assigns 100+ players and strips the Buli-Spieler role from everyone else.
+Keep the production job paused (`gcloud scheduler jobs pause
+discord-season-sync --location europe-west1`) until staff have triggered
+that first run deliberately via "Jetzt abgleichen" on `/staff` and checked
+the server; then `gcloud scheduler jobs resume …`.
+
+**Verification:** `curl -X POST -H "Authorization: Bearer …"
+https://…/api/jobs/discord-season-sync` answers the sync report as JSON
+(`{"skipped": …}` before a published schedule or without the ids). A wrong
+secret answers 401, a service without `JOBS_SECRET` 503. On the staff
+dashboard the Discord card appears only while the last report says the
+server does not match the league, or when no run happened for over an hour
+(the scheduler is not calling).

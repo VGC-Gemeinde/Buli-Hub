@@ -38,6 +38,37 @@ describe("canonicalSpecies", () => {
     // Dex lowercases the name of anything it does not know; we must not.
     expect(canonicalSpecies("Fakemon-Mega", "Fakeite")).toBe("Fakemon-Mega");
   });
+
+  // Stones the dex keys by a form other than the base species: the holding
+  // form is what we store, and a form that cannot hold the stone stays as it
+  // is.
+  describe("stones keyed by a specific form", () => {
+    it("keeps Floette-Eternal, the only Floette that can hold Floettite", () => {
+      expect(canonicalSpecies("Floette-Eternal", "Floettite")).toBe(
+        "Floette-Eternal",
+      );
+      expect(canonicalSpecies("Floette-Mega", "Floettite")).toBe(
+        "Floette-Eternal",
+      );
+      // Plain Floette cannot mega-evolve; the stone is just an item to it.
+      expect(canonicalSpecies("Floette", "Floettite")).toBe("Floette");
+    });
+
+    it("keeps the form for stones with one entry per form", () => {
+      expect(canonicalSpecies("Tatsugiri-Droopy", "Tatsugirinite")).toBe(
+        "Tatsugiri-Droopy",
+      );
+      expect(canonicalSpecies("Tatsugiri-Droopy-Mega", "Tatsugirinite")).toBe(
+        "Tatsugiri-Droopy",
+      );
+      expect(canonicalSpecies("Meowstic-F-Mega", "Meowsticite")).toBe(
+        "Meowstic-F",
+      );
+      expect(canonicalSpecies("Zygarde-Mega", "Zygardite")).toBe(
+        "Zygarde-Complete",
+      );
+    });
+  });
 });
 
 describe("resolveMega", () => {
@@ -67,6 +98,32 @@ describe("resolveMega", () => {
 
   it("leaves a mon with no item unresolved", () => {
     expect(resolveMega("Garchomp", null).megaAbility).toBeNull();
+  });
+
+  it("resolves a stone keyed by a specific form", () => {
+    expect(resolveMega("Floette-Eternal", "Floettite")).toEqual({
+      spriteSpecies: "Floette-Mega",
+      displayName: "Floette-Eternal",
+      megaAbility: "Fairy Aura",
+    });
+    // The right mega for the form, not the first entry of the stone.
+    expect(resolveMega("Tatsugiri-Droopy", "Tatsugirinite").spriteSpecies).toBe(
+      "Tatsugiri-Droopy-Mega",
+    );
+    expect(resolveMega("Meowstic-F", "Meowsticite").spriteSpecies).toBe(
+      "Meowstic-F-Mega",
+    );
+    expect(resolveMega("Zygarde-Complete", "Zygardite").spriteSpecies).toBe(
+      "Zygarde-Mega",
+    );
+  });
+
+  it("does not mega-evolve a form that cannot hold the stone", () => {
+    expect(resolveMega("Floette", "Floettite")).toEqual({
+      spriteSpecies: "Floette",
+      displayName: "Floette",
+      megaAbility: null,
+    });
   });
 
   it("never throws on a species the dex does not know", () => {

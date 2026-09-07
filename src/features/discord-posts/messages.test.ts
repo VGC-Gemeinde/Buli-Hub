@@ -26,24 +26,39 @@ const BASE: ResultMessageInput = {
   ],
   corrected: false,
   matchUrl: "https://hub.example/match/m1",
+  isMotw: false,
 };
 
 describe("resultMessage", () => {
+  it("marks the Match of the Week in the header", () => {
+    expect(resultMessage({ ...BASE, isMotw: true })).toContain(
+      "__**VGC Bundesliga · Division 1a · Spieltag 3 · Match of the Week**__",
+    );
+    expect(resultMessage(BASE)).not.toContain("Match of the Week");
+  });
+
   it("renders the full Showdown three-game message", () => {
     expect(resultMessage(BASE)).toBe(
       `__**VGC Bundesliga · Division 1a · Spieltag 3**__
 
 **Alice**  ||2 - 1||  **Bob**
 
-Team von Alice: https://pokepast.es/aaa
-Team von Bob: https://pokepast.es/bbb
+Team von Alice: <https://pokepast.es/aaa>
+Team von Bob: <https://pokepast.es/bbb>
 
-Game 1: *https://replay.pokemonshowdown.com/g1*
-Game 2: *https://replay.pokemonshowdown.com/g2*
-Game 3: ||*https://replay.pokemonshowdown.com/g3*||
+Game 1: *<https://replay.pokemonshowdown.com/g1>*
+Game 2: *<https://replay.pokemonshowdown.com/g2>*
+Game 3: ||*<https://replay.pokemonshowdown.com/g3>*||
 
 Zum Match: <https://hub.example/match/m1>`,
     );
+  });
+
+  it("suppresses link previews for everything but the match video", () => {
+    const message = resultMessage(BASE);
+    // Every URL sits in angle brackets: no embed for teams, replays, hub link.
+    const bare = message.match(/(?<!<)https?:\/\/\S+/g) ?? [];
+    expect(bare).toEqual([]);
   });
 
   it("fills the Game-3 slot with game 2's replay as a decoy on a 2-0", () => {
@@ -54,7 +69,7 @@ Zum Match: <https://hub.example/match/m1>`,
       replayUrls: BASE.replayUrls.slice(0, 2),
     });
     expect(message).toContain(
-      "Game 3: ||*https://replay.pokemonshowdown.com/g2*||",
+      "Game 3: ||*<https://replay.pokemonshowdown.com/g2>*||",
     );
     // Same line count as a three-game series — the shape never leaks.
     expect(message.split("\n").length).toBe(
@@ -69,7 +84,9 @@ Zum Match: <https://hub.example/match/m1>`,
       replayUrls: [],
       videoUrl: "https://youtu.be/QbxY2WuzCrU",
     });
+    // The one link in a result post that keeps its preview.
     expect(message).toContain("Video: *https://youtu.be/QbxY2WuzCrU*");
+    expect(message).not.toContain("<https://youtu.be/QbxY2WuzCrU>");
     expect(message).not.toContain("Game 1");
   });
 
@@ -168,7 +185,7 @@ Zum Match: <https://hub.example/match/m1>`,
 
 describe("shouldPostResult", () => {
   const confirmed = { outcome: "normal" as const, confirmedAt: null };
-  const base = { isMotw: false, hasDroppedParticipant: false };
+  const base = { motw: null, hasDroppedParticipant: false };
 
   it("posts a public normal result", () => {
     expect(shouldPostResult({ ...base, result: confirmed })).toBe(true);
@@ -193,10 +210,31 @@ describe("shouldPostResult", () => {
     ).toBe(true);
   });
 
-  it("never posts the Match of the Week's result", () => {
-    expect(shouldPostResult({ ...base, isMotw: true, result: confirmed })).toBe(
-      false,
-    );
+  it("holds the Match of the Week's result until its VOD is live", () => {
+    expect(
+      shouldPostResult({
+        ...base,
+        motw: { youtubeUrl: null },
+        result: confirmed,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPostResult({
+        ...base,
+        motw: { youtubeUrl: "https://youtu.be/x" },
+        result: confirmed,
+      }),
+    ).toBe(true);
+  });
+
+  it("still holds a pending free win of the Match of the Week after the VOD", () => {
+    expect(
+      shouldPostResult({
+        ...base,
+        motw: { youtubeUrl: "https://youtu.be/x" },
+        result: { outcome: "free_win", confirmedAt: null },
+      }),
+    ).toBe(false);
   });
 
   it("never posts drop-decided matches", () => {

@@ -2,6 +2,12 @@
 // community format with hub vocabulary (docs/plans/discord-result-posts.md).
 // Scores and outcomes sit behind Discord spoiler tags; both names are always
 // bold (bolding only the winner would leak through the spoiler).
+//
+// Link previews: a URL in angle brackets gets no embed. Every link is wrapped
+// that way — team sheets, replays, the hub link — except the two videos,
+// whose preview *is* the point: the Match-of-the-Week VOD and a Cartridge
+// match video (usually a YouTube link as well).
+const noPreview = (url: string): string => `<${url}>`;
 
 export type MatchOutcome = "normal" | "free_win" | "double_loss";
 
@@ -27,6 +33,9 @@ export type ResultMessageInput = {
   corrected: boolean;
   // Absolute hub link, or null when APP_BASE_URL is not configured.
   matchUrl: string | null;
+  // The Match of the Week's result post lands only once its VOD is live,
+  // typically days after the Spieltag — the header says why it is late.
+  isMotw: boolean;
 };
 
 function scoreLine(input: ResultMessageInput): string {
@@ -42,33 +51,35 @@ function scoreLine(input: ResultMessageInput): string {
 }
 
 export function resultMessage(input: ResultMessageInput): string {
+  const header = `VGC Bundesliga · ${input.groupName} · Spieltag ${input.round}`;
   const blocks: string[] = [
-    `__**VGC Bundesliga · ${input.groupName} · Spieltag ${input.round}**__`,
+    `__**${input.isMotw ? `${header} · Match of the Week` : header}**__`,
     scoreLine(input),
   ];
 
   if (input.outcome === "normal") {
     if (input.playerATeamUrl && input.playerBTeamUrl) {
       blocks.push(
-        `Team von ${input.playerAName}: ${input.playerATeamUrl}\n` +
-          `Team von ${input.playerBName}: ${input.playerBTeamUrl}`,
+        `Team von ${input.playerAName}: ${noPreview(input.playerATeamUrl)}\n` +
+          `Team von ${input.playerBName}: ${noPreview(input.playerBTeamUrl)}`,
       );
     }
     const [game1, game2, game3] = input.replayUrls;
     if (input.platform === "showdown" && game1 && game2) {
       blocks.push(
-        `Game 1: *${game1}*\n` +
-          `Game 2: *${game2}*\n` +
-          `Game 3: ||*${game3 ?? game2}*||`,
+        `Game 1: *${noPreview(game1)}*\n` +
+          `Game 2: *${noPreview(game2)}*\n` +
+          `Game 3: ||*${noPreview(game3 ?? game2)}*||`,
       );
     }
     if (input.platform === "cartridge" && input.videoUrl) {
+      // Unwrapped on purpose: the video preview is wanted here.
       blocks.push(`Video: *${input.videoUrl}*`);
     }
   }
 
   if (input.matchUrl) {
-    blocks.push(`Zum Match: <${input.matchUrl}>`);
+    blocks.push(`Zum Match: ${noPreview(input.matchUrl)}`);
   }
   if (input.corrected) {
     blocks.push("*(korrigiert)*");
@@ -90,24 +101,28 @@ export function motwVodMessage(input: {
     `**${input.playerAName}** vs. **${input.playerBName}**: das VOD ist da!\n${input.youtubeUrl}`,
   ];
   if (input.matchUrl) {
-    blocks.push(`Zum Match: <${input.matchUrl}>`);
+    blocks.push(`Zum Match: ${noPreview(input.matchUrl)}`);
   }
   return blocks.join("\n\n");
 }
 
 // Whether the results channel should carry a result post for a match — the
 // converge decision. "No" for unreported matches, results the hub itself
-// still hides (pending free wins), the Match of the Week (its result is
-// permanently spoiler-protected; the VOD post is its only announcement), and
-// drop-decided matches (drop free wins get no messages; existing posts of
-// played matches stay as historical records until the match is touched
-// again).
+// still hides (pending free wins), the Match of the Week while its result is
+// under embargo (no VOD yet; once the link is attached the result is public
+// and posted like any other), and drop-decided matches (drop free wins get
+// no messages; existing posts of played matches stay as historical records
+// until the match is touched again).
 export function shouldPostResult(input: {
-  isMotw: boolean;
+  // The match's MotW selection, null when it is not the featured match.
+  motw: { youtubeUrl: string | null } | null;
   hasDroppedParticipant: boolean;
   result: { outcome: MatchOutcome; confirmedAt: Date | null } | null;
 }): boolean {
-  if (input.isMotw || input.hasDroppedParticipant || input.result === null) {
+  if (input.motw !== null && input.motw.youtubeUrl === null) {
+    return false;
+  }
+  if (input.hasDroppedParticipant || input.result === null) {
     return false;
   }
   if (

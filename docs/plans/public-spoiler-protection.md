@@ -47,7 +47,9 @@ scores and stays untouched; participants and staff keep seeing everything.
   participant are exempt everywhere.
 - **MotW fully exempt from the switch**: the billboard, its row badge, and
   its match-page cover keep their own always-on reveal exactly as today —
-  the global switch never unhides the Match of the Week.
+  the global switch never unhides the Match of the Week. Before the VOD the
+  MotW result is not merely covered but withheld from the public entirely
+  (`docs/plans/motw-result-embargo.md`).
 - **Standings stay visible** (confirmed): tables aggregate results and
   inherently leak; hiding them would gut the page.
 

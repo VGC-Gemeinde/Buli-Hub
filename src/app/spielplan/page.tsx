@@ -28,7 +28,10 @@ export default async function SpielplanPage() {
   }
 
   const [overview, cookieStore] = await Promise.all([
-    publicLeagueOverview(window.id, window.seasonNumber, germanToday()),
+    publicLeagueOverview(window.id, window.seasonNumber, germanToday(), {
+      userId: current?.userId ?? null,
+      isStaff,
+    }),
     cookies(),
   ]);
   const spoilersOff = parseSpoilersOff(

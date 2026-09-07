@@ -12,6 +12,7 @@ import {
 import { PublicLeague } from "@/features/public-league/components/public-league";
 import { publicLeagueOverview } from "@/features/public-league/queries";
 import { currentUser } from "@/features/roles/guard";
+import { roleAtLeast } from "@/features/roles/roles";
 import { currentSeason } from "@/features/season/season-status";
 import {
   parseSpoilersOff,
@@ -33,11 +34,20 @@ export default async function Home({
 
   if (phase === "regular_season" && window) {
     const today = germanToday();
-    const [overview, current, cookieStore] = await Promise.all([
-      publicLeagueOverview(window.id, window.seasonNumber, today),
+    const [current, cookieStore] = await Promise.all([
       currentUser(),
       cookies(),
     ]);
+    // The viewer decides whether an embargoed MotW result is included.
+    const overview = await publicLeagueOverview(
+      window.id,
+      window.seasonNumber,
+      today,
+      {
+        userId: current?.userId ?? null,
+        isStaff: current !== null && roleAtLeast(current.role, "staff"),
+      },
+    );
     const spoilersOff = parseSpoilersOff(
       cookieStore.get(SPOILERS_OFF_COOKIE)?.value,
     );

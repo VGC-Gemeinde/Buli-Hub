@@ -32,6 +32,40 @@ export const youtubeUrlSchema = z
   .trim()
   .refine(isYoutubeUrl, "Bitte einen https-YouTube-Link angeben");
 
+// --- Result embargo --------------------------------------------------------
+
+// The Match of the Week before its VOD: the result is withheld from the
+// public until the YouTube link is attached (docs/plans/motw-result-embargo.md).
+// "withheld": this viewer may not see it (the result never reaches the
+// client); "preview": this viewer (staff or a participant) sees it, marked as
+// not public; null: no embargo (not the MotW, or the VOD is live). After the
+// VOD the regular courtesy spoiler tag takes over.
+export type MotwEmbargo = "withheld" | "preview" | null;
+
+export function motwEmbargo(input: {
+  // The match's MotW selection, null when it is not the featured match.
+  selection: { youtubeUrl: string | null } | null;
+  isStaff: boolean;
+  isParticipant: boolean;
+}): MotwEmbargo {
+  if (input.selection === null || input.selection.youtubeUrl !== null) {
+    return null;
+  }
+  return input.isStaff || input.isParticipant ? "preview" : "withheld";
+}
+
+// A withheld row keeps `reported` (the match was played, the row is not
+// "offen") but loses everything that says who won.
+export function withholdScore<
+  T extends {
+    scoreA: number | null;
+    scoreB: number | null;
+    winnerId: string | null;
+  },
+>(row: T): T {
+  return { ...row, scoreA: null, scoreB: null, winnerId: null };
+}
+
 // The staff dashboard's MotW todo. The current Spieltag without a pick is the
 // urgent case and replaces the next-week warning; otherwise staff are nudged
 // to pick next week's match ahead of time. Null outside a running round or

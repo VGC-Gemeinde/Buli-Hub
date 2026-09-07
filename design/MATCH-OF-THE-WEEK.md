@@ -74,19 +74,29 @@ Content column `gap-6 px-8 py-6` (26/32/24 in the reference), three rows:
   (right-aligned, avatar outside).
 - **Center state box** — fixed footprint so state changes never relayout the
   card: `flex h-[74px] min-w-[190px] flex-col items-center justify-center
-  gap-[7px]`. Three states:
+  gap-[7px]`. Four states (`docs/plans/motw-result-embargo.md` decides which
+  viewer gets which before the VOD):
   1. **Unplayed** (`!match.reported`): pill **Läuft diese Woche**
      (`rounded-full bg-white/10 border border-white/20 px-4 py-1.5 text-[12px]
      font-semibold uppercase tracking-[0.1em]`) + caption **Best of 3**
      (11.5px `text-white/55`).
-  2. **Reported, covered** (default): reveal button — `rounded-[10px]
-     bg-white/8 border border-brand-orange/65 px-5 py-[11px] text-sm
-     font-semibold text-white` with a leading eye icon (16px, orange stroke),
-     label **Ergebnis aufdecken**; hover `bg-brand-orange/18`. Caption:
-     **Spoiler-Schutz: erst das VOD ansehen**.
-  3. **Revealed** (client-side `useState`, as shipped): score
+  2. **Reported, withheld** (no VOD yet, public viewer): pill in the reveal
+     button's outline family — `rounded-full bg-white/8 border
+     border-brand-orange/65 px-4 py-1.5 text-[12px] font-semibold uppercase
+     tracking-[0.1em]` with a leading lock icon (14px, orange), label
+     **Ergebnis folgt mit dem VOD**; nothing to click. Caption **Gespielt ·
+     Best of 3**.
+  3. **Reported, covered** (VOD live, or staff/participant before it): reveal
+     button — `rounded-[10px] bg-white/8 border border-brand-orange/65 px-5
+     py-[11px] text-sm font-semibold text-white` with a leading eye icon
+     (16px, orange stroke), label **Ergebnis aufdecken**; hover
+     `bg-brand-orange/18`. Caption: **Spoiler-Schutz: erst das VOD ansehen**;
+     before the VOD (staff/participant preview) a lock icon (12px, orange) +
+     **Noch nicht öffentlich, erst mit dem VOD**.
+  4. **Revealed** (client-side `useState`, as shipped): score
      `font-heading 46px tabular-nums` **2 : 1** + caption
-     **Best of 3 · gemeldet**.
+     **Best of 3 · gemeldet**, or **Best of 3 · noch nicht öffentlich** in
+     the preview.
 - Captions live inside the fixed box; the reveal button sits exactly where
   the score appears.
 
@@ -128,9 +138,22 @@ today.
 
 - MOTW badge (§1.1) + **Spieltag {n}** (12px semibold uppercase
   tracking-[0.08em] muted).
+- **Noch nicht öffentlich** chip, only for a staff member or participant
+  looking at a result that is still under embargo (no VOD yet): `rounded-full
+  border border-brand-orange/60 px-2.5 py-[3px] text-[11px] font-semibold
+  uppercase tracking-[0.08em] text-brand-orange` with a leading lock icon
+  (12px). A full-width line below the row (13px muted) explains: "Ergebnis,
+  Replays und Teamsheets werden mit dem VOD veröffentlicht. Bis dahin sehen
+  nur Staff und die beiden Spieler das Ergebnis."
 - `ml-auto`: YouTube button (orange, white text, play icon, `size sm`) once
   the link exists; nothing otherwise (the page has no stable slot to hold —
   the billboard carries the placeholder).
+
+A public viewer meets the embargoed match on the neutral result-less page
+(`public-match-view.tsx`) in its **played** state: chip **Gespielt** in a
+brand-blue tint (`bg-brand-blue/10 text-brand-blue`) instead of the grey
+**Offen**, sub-line **Ergebnis folgt mit dem VOD**, and the informational card
+**Ergebnis folgt mit dem VOD**.
 
 ### 4.2 Spoiler cover
 
@@ -287,7 +310,10 @@ set it collapses to the orange **Auf YouTube ansehen** button (play icon, white
 text) + outline **VOD-Link ändern**. Editing shows label **YouTube-VOD** (13px),
 input + primary **Speichern** (+ **Abbrechen** when a link already exists), hint
 12px muted: "Feld leeren und speichern entfernt den Link." / "Noch kein VOD
-verlinkt." — never promise upload timing.
+verlinkt." — never promise upload timing. While the pick is reported and has
+no link, a 13px muted line under the field says what the link does:
+"Ergebnis gemeldet, noch nicht öffentlich. Mit dem VOD-Link wird es
+veröffentlicht und im Ergebniskanal gepostet."
 
 ### 5.6 Which weeks are editable (`canSelectRound`)
 

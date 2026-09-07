@@ -1,10 +1,17 @@
 import { markDropped } from "@/features/drops/drops";
 import { droppedIdsForWindow } from "@/features/drops/queries";
-import { findMotw, type MotwBlockData } from "@/features/motw/motw";
+import {
+  findMotw,
+  type MotwBlockData,
+  type MotwEmbargo,
+  motwEmbargo,
+  withholdScore,
+} from "@/features/motw/motw";
 import { motwForWindow } from "@/features/motw/queries";
 import { scoreFor } from "@/features/reporting/match-state";
 import {
   divisionGroups,
+  type MatchResultLite,
   subDivisionResults,
 } from "@/features/reporting/queries";
 import type { MatchOutcome } from "@/features/reporting/report";
@@ -46,10 +53,22 @@ export type PublicMatch = {
   scoreB: number | null;
   winnerId: string | null;
   // Match of the Week: the row shows a badge instead of the score, permanently
-  // (spoiler protection). The score fields stay filled — the prominent block's
-  // click-to-reveal uses them.
+  // (spoiler protection). The score fields stay filled for the reveal, except
+  // while the result is withheld from this viewer (`motwEmbargo`).
   isMotw: boolean;
+  // Before the VOD the result is withheld from the public: "withheld" rows
+  // carry no score/winner at all; "preview" rows (staff, participants) carry
+  // it, marked as not public (docs/plans/motw-result-embargo.md).
+  motwEmbargo: MotwEmbargo;
 };
+
+// Who is looking: decides whether an embargoed MotW result may be included.
+export type OverviewViewer = {
+  userId: string | null;
+  isStaff: boolean;
+};
+
+type MotwSelectionLite = { matchId: string; youtubeUrl: string | null };
 
 export type PublicGroup = {
   subDivisionId: string;
@@ -121,6 +140,7 @@ export async function publicLeagueOverview(
   windowId: string,
   seasonNumber: number,
   today: string,
+  viewer: OverviewViewer,
 ): Promise<PublicOverview> {
   const [configs, matchdays, motwSelections, droppedIds] = await Promise.all([
     divisionsWithGroupSizes(windowId),
@@ -130,11 +150,13 @@ export async function publicLeagueOverview(
   ]);
   const currentRound = currentMatchday(matchdays, today)?.round ?? null;
 
-  const motwMatchIds = new Set(motwSelections.map((s) => s.matchId));
+  const motwByMatchId = new Map(motwSelections.map((s) => [s.matchId, s]));
   const divisions = await Promise.all(
     [...configs]
       .sort((a, b) => a.tier - b.tier)
-      .map((config) => buildDivision(config, motwMatchIds, droppedIds)),
+      .map((config) =>
+        buildDivision(config, motwByMatchId, droppedIds, viewer),
+      ),
   );
 
   // The prominent block features only the running Spieltag's pick.
@@ -154,8 +176,9 @@ export async function publicLeagueOverview(
 
 async function buildDivision(
   config: Awaited<ReturnType<typeof divisionsWithGroupSizes>>[number],
-  motwMatchIds: ReadonlySet<string>,
+  motwByMatchId: ReadonlyMap<string, MotwSelectionLite>,
   droppedIds: ReadonlySet<string>,
+  viewer: OverviewViewer,
 ): Promise<PublicDivision> {
   const groups = await divisionGroups(config.id);
   const counts = zoneCounts(config);
@@ -182,7 +205,15 @@ async function buildDivision(
 
   const publicGroups = await Promise.all(
     groups.map((group) =>
-      buildGroup(config.tier, group, mode, counts, motwMatchIds, droppedIds),
+      buildGroup(
+        config.tier,
+        group,
+        mode,
+        counts,
+        motwByMatchId,
+        droppedIds,
+        viewer,
+      ),
     ),
   );
 
@@ -202,8 +233,9 @@ async function buildGroup(
   group: Awaited<ReturnType<typeof divisionGroups>>[number],
   mode: "sub_division" | "division",
   counts: ReturnType<typeof zoneCounts>,
-  motwMatchIds: ReadonlySet<string>,
+  motwByMatchId: ReadonlyMap<string, MotwSelectionLite>,
   droppedIds: ReadonlySet<string>,
+  viewer: OverviewViewer,
 ): Promise<PublicGroup> {
   const standings = markDropped(
     computeStandings({ roster: group.roster, results: group.results }),
@@ -216,7 +248,8 @@ async function buildGroup(
   const matches = await allMatches(
     group.subDivisionId,
     identityById,
-    motwMatchIds,
+    motwByMatchId,
+    viewer,
   );
 
   return {
@@ -232,7 +265,8 @@ async function buildGroup(
 async function allMatches(
   subDivisionId: string,
   identityById: Map<string, Identity>,
-  motwMatchIds: ReadonlySet<string>,
+  motwByMatchId: ReadonlyMap<string, MotwSelectionLite>,
+  viewer: OverviewViewer,
 ): Promise<PublicMatch[]> {
   const [matches, resultByMatch] = await Promise.all([
     subDivisionMatches(subDivisionId),
@@ -245,33 +279,63 @@ async function allMatches(
       avatarUrl: null,
     };
 
-  return matches.map((match): PublicMatch => {
-    const result = resultByMatch.get(match.id) ?? null;
-    const pending =
-      result?.outcome === "free_win" && result.confirmedAt === null;
-    const reported = result !== null && !pending;
-    let scoreA: number | null = null;
-    let scoreB: number | null = null;
-    if (reported && result) {
-      const s = scoreFor(match.playerAId, {
-        outcome: result.outcome as MatchOutcome,
-        winnerId: result.winnerId,
-        games: result.games,
-      });
-      scoreA = s.self;
-      scoreB = s.opponent;
-    }
-    return {
-      matchId: match.id,
-      round: match.round,
+  return matches.map((match) =>
+    toPublicMatch({
+      match,
+      result: resultByMatch.get(match.id) ?? null,
       playerA: unknown(match.playerAId),
       playerB: match.playerBId ? unknown(match.playerBId) : null,
-      reported,
-      pending,
-      scoreA,
-      scoreB,
-      winnerId: reported ? (result?.winnerId ?? null) : null,
-      isMotw: motwMatchIds.has(match.id),
-    };
+      motw: motwByMatchId.get(match.id) ?? null,
+      viewer,
+    }),
+  );
+}
+
+// One overview row from its stored pieces (pure, unit-tested): a pending free
+// win stays "offen"; the Match of the Week under embargo is withheld from a
+// viewer who is neither staff nor a participant.
+export function toPublicMatch(input: {
+  match: { id: string; round: number; playerAId: string };
+  result: MatchResultLite | null;
+  playerA: Identity;
+  playerB: Identity | null;
+  motw: { youtubeUrl: string | null } | null;
+  viewer: OverviewViewer;
+}): PublicMatch {
+  const { match, result, playerA, playerB, viewer } = input;
+  const pending = result?.outcome === "free_win" && result.confirmedAt === null;
+  const reported = result !== null && !pending;
+  let scoreA: number | null = null;
+  let scoreB: number | null = null;
+  if (reported && result) {
+    const s = scoreFor(match.playerAId, {
+      outcome: result.outcome as MatchOutcome,
+      winnerId: result.winnerId,
+      games: result.games,
+    });
+    scoreA = s.self;
+    scoreB = s.opponent;
+  }
+  const isParticipant =
+    viewer.userId !== null &&
+    (viewer.userId === playerA.userId || viewer.userId === playerB?.userId);
+  const embargo = motwEmbargo({
+    selection: input.motw,
+    isStaff: viewer.isStaff,
+    isParticipant,
   });
+  const row: PublicMatch = {
+    matchId: match.id,
+    round: match.round,
+    playerA,
+    playerB,
+    reported,
+    pending,
+    scoreA,
+    scoreB,
+    winnerId: reported ? (result?.winnerId ?? null) : null,
+    isMotw: input.motw !== null,
+    motwEmbargo: embargo,
+  };
+  return embargo === "withheld" ? withholdScore(row) : row;
 }

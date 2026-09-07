@@ -107,7 +107,7 @@ async function dropMessage(kind: PostKind, matchId: string): Promise<void> {
 }
 
 // Converges the result post of a match: posted while the hub shows a public
-// result (and the match is not the Match of the Week), deleted otherwise.
+// result (for the Match of the Week: once its VOD is live), deleted otherwise.
 export async function syncResultPost(matchId: string): Promise<void> {
   try {
     const channels = resultChannels();
@@ -129,7 +129,7 @@ export async function syncResultPost(matchId: string): Promise<void> {
       droppedIds.has(match.playerB.userId);
     if (
       !shouldPostResult({
-        isMotw: motw !== null,
+        motw,
         hasDroppedParticipant,
         result,
       })
@@ -167,6 +167,7 @@ export async function syncResultPost(matchId: string): Promise<void> {
         .filter((url): url is string => url !== null && url !== undefined),
       corrected: result.correctedAt !== null,
       matchUrl: matchUrl(matchId),
+      isMotw: motw !== null,
     });
     await putMessage(
       "result",

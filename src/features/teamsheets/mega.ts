@@ -17,15 +17,44 @@ const MEGA_ABILITY_OVERRIDES: Record<string, string> = {};
 const toId = (value: string): string =>
   value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-// The mega a stone evolves the given base species into, or null.
-function megaFromStone(item: string, base: string): string | null {
+type StoneEvolution = { base: string; mega: string };
+
+// What a stone does for the given species: the form it evolves and the mega
+// it becomes, or null when the stone is not this species' stone. The dex keys
+// a stone by the exact form that can hold it — usually the base species
+// ("Delphox"), but "Floette-Eternal" for Floettite (plain Floette cannot
+// mega-evolve), and one key per form for stones like Tatsugirinite or
+// Meowsticite, whose megas keep the form. So the lookup goes form as written
+// → the mega itself (a paste that writes "Floette-Mega" inline, matched on
+// the stone's value) → base species, and reports the holding form as `base`.
+// The base species comes last on purpose: "Tatsugiri-Droopy-Mega" must find
+// its own entry before falling back to the one plain "Tatsugiri" would use.
+function stoneEvolution(item: string, species: string): StoneEvolution | null {
+  const sp = Dex.species.get(species);
+  const written = sp.exists ? sp.name : species;
+  const baseSpecies = sp.exists ? sp.baseSpecies || sp.name : species;
+
   const override = STONE_OVERRIDES[toId(item)];
   if (override) {
-    return toId(override.base) === toId(base) ? override.mega : null;
+    return [written, baseSpecies].some((c) => toId(c) === toId(override.base))
+      ? override
+      : null;
   }
   const stone = (Dex.items.get(item) as { megaStone?: Record<string, string> })
     .megaStone;
-  return stone?.[base] ?? null;
+  if (!stone) {
+    return null;
+  }
+  if (stone[written]) {
+    return { base: written, mega: stone[written] };
+  }
+  const inline = Object.entries(stone).find(([, mega]) => mega === written);
+  if (inline) {
+    return { base: inline[0], mega: inline[1] };
+  }
+  return stone[baseSpecies]
+    ? { base: baseSpecies, mega: stone[baseSpecies] }
+    : null;
 }
 
 // The single ability a species mega-evolves into (slot 0).
@@ -37,23 +66,19 @@ function megaAbilityOf(mega: string): string | null {
   return Dex.species.get(mega).abilities?.["0"] ?? null;
 }
 
-// The base species name as written in a paste. `Dex` lowercases the name of a
-// species it does not know, so unknown input is passed through untouched
-// rather than mangled into "nonexistentmon".
-function baseNameOf(species: string): string {
-  const sp = Dex.species.get(species);
-  return sp.exists ? sp.baseSpecies || sp.name : species;
-}
-
 // The species we store. A mon holding its own mega stone is always written as
-// the base form, so that a Pokepaste (which writes the mega forme inline) and a
-// VRPaste (which returns the base form plus a separate mega block) produce
-// byte-identical OTS for the same team. A mega forme *without* its stone is
-// left alone — it is unusual, but it is what the player wrote.
+// the form that holds it, so that a Pokepaste (which writes the mega forme
+// inline) and a VRPaste (which returns the base form plus a separate mega
+// block) produce byte-identical OTS for the same team. A mega forme *without*
+// its stone is left alone — it is unusual, but it is what the player wrote.
+// `Dex` lowercases the name of a species it does not know, so unknown input is
+// passed through untouched rather than mangled into "nonexistentmon".
 export function canonicalSpecies(species: string, item: string | null): string {
-  const base = baseNameOf(species);
-  if (item && megaFromStone(item, base)) {
-    return base;
+  if (item) {
+    const evolution = stoneEvolution(item, species);
+    if (evolution) {
+      return evolution.base;
+    }
   }
   const sp = Dex.species.get(species);
   return sp.exists ? sp.name : species;
@@ -85,13 +110,12 @@ export function resolveMega(
   }
 
   if (item) {
-    const base = baseNameOf(species);
-    const mega = megaFromStone(item, base);
-    if (mega) {
+    const evolution = stoneEvolution(item, species);
+    if (evolution) {
       return {
-        spriteSpecies: mega,
-        displayName: base,
-        megaAbility: megaAbilityOf(mega),
+        spriteSpecies: evolution.mega,
+        displayName: evolution.base,
+        megaAbility: megaAbilityOf(evolution.mega),
       };
     }
   }

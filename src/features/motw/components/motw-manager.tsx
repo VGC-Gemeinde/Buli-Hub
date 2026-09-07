@@ -246,12 +246,20 @@ function PickPanel({
         </p>
       )}
 
-      <div className="border-brand-orange/25 border-t pt-4">
+      <div className="flex flex-col gap-2.5 border-brand-orange/25 border-t pt-4">
         <MotwVodField
           round={week.round}
           youtubeUrl={week.selection?.youtubeUrl ?? null}
           onError={onError}
         />
+        {match?.reported && !week.selection?.youtubeUrl ? (
+          // The link is what ends the result embargo — say so where it is
+          // entered (docs/plans/motw-result-embargo.md).
+          <p className="text-[13px] text-muted-foreground">
+            Ergebnis gemeldet, noch nicht öffentlich. Mit dem VOD-Link wird es
+            veröffentlicht und im Ergebniskanal gepostet.
+          </p>
+        ) : null}
       </div>
 
       {editable ? (

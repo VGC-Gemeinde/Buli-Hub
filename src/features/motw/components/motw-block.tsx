@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Play } from "lucide-react";
+import { Eye, Lock, Play } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,13 +12,16 @@ import type { MotwBlockData } from "../motw";
 // The Match-of-the-Week billboard on the public overview (design/
 // MATCH-OF-THE-WEEK.md §2): the league's one editorial moment per week, the
 // only dark panel on the page. Shown only while its round is the current
-// Spieltag. The result stays behind a click-to-reveal so visitors can watch
-// the VOD first (client-side reveal — a courtesy spoiler tag, not security).
-// Desktop is the A · state · B broadcast row; mobile stacks the players with
-// the state box between them.
+// Spieltag. Before the VOD the result is withheld from the public (the row
+// carries no score — `motwEmbargo`); staff and participants get the reveal
+// with a "not public yet" marker. After the VOD the result stays behind a
+// click-to-reveal so visitors can watch first (client-side reveal — a
+// courtesy spoiler tag, not security). Desktop is the A · state · B
+// broadcast row; mobile stacks the players with the state box between them.
 export function MotwBlock({ motw }: { motw: MotwBlockData }) {
   const [revealed, setRevealed] = useState(false);
   const { match, groupName, youtubeUrl } = motw;
+  const embargo = match.motwEmbargo;
   // findMotw never yields a bye; the guard keeps the types honest.
   if (match.playerB === null) {
     return null;
@@ -66,13 +69,27 @@ export function MotwBlock({ motw }: { motw: MotwBlockData }) {
                 </span>
                 <span className="text-[11.5px] text-white/55">Best of 3</span>
               </>
+            ) : embargo === "withheld" ? (
+              // Played, but the result is withheld until the VOD is live:
+              // nothing to reveal, the chip says when it comes.
+              <>
+                <span className="flex items-center gap-2 whitespace-nowrap rounded-full border border-brand-orange/65 bg-white/8 px-4 py-1.5 font-semibold text-[12px] uppercase tracking-[0.1em]">
+                  <Lock aria-hidden className="size-3.5 text-brand-orange" />
+                  Ergebnis folgt mit dem VOD
+                </span>
+                <span className="text-[11.5px] text-white/55">
+                  Gespielt · Best of 3
+                </span>
+              </>
             ) : revealed ? (
               <>
                 <span className="font-bold font-heading text-[34px] leading-none tabular-nums sm:text-[46px]">
                   {match.scoreA} : {match.scoreB}
                 </span>
                 <span className="text-[11.5px] text-white/55">
-                  Best of 3 · gemeldet
+                  {embargo === "preview"
+                    ? "Best of 3 · noch nicht öffentlich"
+                    : "Best of 3 · gemeldet"}
                 </span>
               </>
             ) : (
@@ -85,9 +102,16 @@ export function MotwBlock({ motw }: { motw: MotwBlockData }) {
                   <Eye aria-hidden className="size-4 text-brand-orange" />
                   Ergebnis aufdecken
                 </button>
-                <span className="text-center text-[11.5px] text-white/55">
-                  Spoiler-Schutz: erst das VOD ansehen
-                </span>
+                {embargo === "preview" ? (
+                  <span className="flex items-center gap-1.5 text-center text-[11.5px] text-white/55">
+                    <Lock aria-hidden className="size-3 text-brand-orange" />
+                    Noch nicht öffentlich, erst mit dem VOD
+                  </span>
+                ) : (
+                  <span className="text-center text-[11.5px] text-white/55">
+                    Spoiler-Schutz: erst das VOD ansehen
+                  </span>
+                )}
               </>
             )}
           </div>

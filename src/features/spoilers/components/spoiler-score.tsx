@@ -1,5 +1,6 @@
 "use client";
 
+import type { MotwEmbargo } from "@/features/motw/motw";
 import { cn } from "@/lib/utils";
 
 // The shared masking idiom (design/SPOILER-SCHUTZ.md §1.1): a hidden value is
@@ -34,21 +35,29 @@ export function SpoilerPill({
   );
 }
 
+const MOTW_PILL =
+  "whitespace-nowrap rounded-full bg-brand-orange px-[9px] py-1 font-bold text-[8.5px] text-white uppercase leading-none tracking-[0.09em]";
+
 // A match row's score slot under spoiler protection: the placeholder pill
 // while covered — the featured match gets the orange MotW pill, which *is*
 // its only row marker — and the plain score otherwise. Controlled by the row
-// (which also suppresses winner bolding while covered).
+// (which also suppresses winner bolding while covered). Before the MotW's
+// VOD (`embargo`) the pill is inert for a viewer the result is withheld from
+// — there is nothing to reveal, the row carries no score — and tells a
+// previewing viewer that what they can reveal is not public yet.
 export function SpoilerScore({
   scoreA,
   scoreB,
   covered,
   motw = false,
+  embargo = null,
   onReveal,
 }: {
   scoreA: number | null;
   scoreB: number | null;
   covered: boolean;
   motw?: boolean;
+  embargo?: MotwEmbargo;
   onReveal: () => void;
 }) {
   if (!covered) {
@@ -58,18 +67,35 @@ export function SpoilerScore({
       </span>
     );
   }
+  if (motw && embargo === "withheld") {
+    return (
+      <span
+        title="Match of the Week: Ergebnis folgt mit dem VOD"
+        className={cn(MOTW_PILL, "cursor-default")}
+      >
+        MotW
+      </span>
+    );
+  }
   if (motw) {
     return (
       <button
         type="button"
-        title="Match of the Week: Ergebnis bleibt verdeckt, antippen zum Aufdecken"
+        title={
+          embargo === "preview"
+            ? "Match of the Week: Ergebnis noch nicht öffentlich, antippen zum Aufdecken"
+            : "Match of the Week: Ergebnis bleibt verdeckt, antippen zum Aufdecken"
+        }
         aria-label="Ergebnis aufdecken"
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
           onReveal();
         }}
-        className="cursor-pointer whitespace-nowrap rounded-full bg-brand-orange px-[9px] py-1 font-bold text-[8.5px] text-white uppercase leading-none tracking-[0.09em] transition-colors hover:bg-[#ff8d24]"
+        className={cn(
+          MOTW_PILL,
+          "cursor-pointer transition-colors hover:bg-[#ff8d24]",
+        )}
       >
         MotW
       </button>

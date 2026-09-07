@@ -33,7 +33,7 @@ import {
 } from "@/features/reporting/queries";
 import { bucketMatches } from "@/features/reporting/staff-dashboard";
 import { currentUser } from "@/features/roles/guard";
-import { roleAtLeast } from "@/features/roles/roles";
+import { type Role, roleAtLeast } from "@/features/roles/roles";
 import { PublishScheduleCard } from "@/features/schedule/components/publish-schedule-card";
 import { subDivisionRosters } from "@/features/schedule/queries";
 import { defaultDeadlines, spieltagCount } from "@/features/schedule/spieltage";
@@ -133,6 +133,24 @@ function SeasonStrip({
   );
 }
 
+// Page heading shared by every phase of the Staff-Bereich. The usage stats
+// link is admin+ (docs/plans/usage-stats.md) and must appear in each layout
+// branch below, so it lives here rather than in one of them.
+function StaffHeading({ role }: { role: Role }) {
+  return (
+    <div className="mb-9 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+      <h1 className="text-[40px] text-brand-blue dark:text-white">
+        Staff-Bereich
+      </h1>
+      {roleAtLeast(role, "admin") ? (
+        <ActionLink href="/staff/nutzung" className="text-sm">
+          Nutzung
+        </ActionLink>
+      ) : null}
+    </div>
+  );
+}
+
 export default async function StaffPage() {
   const current = await currentUser();
   if (!current || !roleAtLeast(current.role, "staff")) {
@@ -222,9 +240,7 @@ export default async function StaffPage() {
       <div className="flex flex-1 flex-col">
         <SiteHeader />
         <main className="mx-auto w-full max-w-[1040px] flex-1 px-8 py-12">
-          <h1 className="mb-9 text-[40px] text-brand-blue dark:text-white">
-            Staff-Bereich
-          </h1>
+          <StaffHeading role={current.role} />
           <div className="flex flex-col gap-4.5">
             <SeasonStrip
               season={seasonName(window.seasonNumber)}
@@ -301,16 +317,7 @@ export default async function StaffPage() {
     <div className="flex flex-1 flex-col">
       <SiteHeader />
       <main className="mx-auto w-full max-w-[1040px] flex-1 px-8 py-12">
-        <div className="mb-9 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-          <h1 className="text-[40px] text-brand-blue dark:text-white">
-            Staff-Bereich
-          </h1>
-          {roleAtLeast(current.role, "admin") ? (
-            <ActionLink href="/staff/nutzung" className="text-sm">
-              Nutzung
-            </ActionLink>
-          ) : null}
-        </div>
+        <StaffHeading role={current.role} />
         <div className="flex flex-col gap-10">
           {phase === "registration_closed" || phase === "seeded" ? (
             <PreseasonTodoCard phase={phase} scheduleSetup={scheduleSetup} />

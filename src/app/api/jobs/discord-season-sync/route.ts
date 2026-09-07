@@ -1,13 +1,13 @@
 import { syncSeasonDiscord } from "@/features/discord-season/converge";
 import { latestWindow } from "@/features/staff/queries";
-import { authorizeJob } from "@/lib/jobs";
+import { authorizeBearer } from "@/lib/bearer";
 
 // Cloud Scheduler target: converges the Discord server onto the running
 // season (docs/plans/discord-season-setup.md). Idempotent, so overlapping
 // or repeated invocations are harmless. Nothing to do before the schedule
 // is published — roles would leak the hidden groups.
 export async function POST(request: Request) {
-  const auth = authorizeJob(
+  const auth = authorizeBearer(
     request.headers.get("authorization"),
     process.env.JOBS_SECRET,
   );

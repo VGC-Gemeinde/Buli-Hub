@@ -81,6 +81,7 @@ printf '%s' '<value>' | gcloud secrets create DATABASE_URL --data-file=-        
 printf '%s' '<value>' | gcloud secrets create SUPABASE_SECRET_KEY --data-file=-
 printf '%s' '<value>' | gcloud secrets create DISCORD_BOT_TOKEN --data-file=-
 openssl rand -hex 32 | tr -d '\n' | gcloud secrets create JOBS_SECRET --data-file=-   # scheduled job routes, see §8
+openssl rand -hex 32 | tr -d '\n' | gcloud secrets create STREAM_API_SECRET --data-file=-   # stream API, see §9
 # Grant the *runtime* service account access:
 gcloud secrets add-iam-policy-binding DATABASE_URL \
   --member="serviceAccount:<PROJECT_NUMBER>-compute@developer.gserviceaccount.com" \
@@ -93,7 +94,7 @@ gcloud secrets add-iam-policy-binding DATABASE_URL \
 gcloud run deploy buli-hub --image <first image> --region europe-west1 \
   --no-invoker-iam-check \
   --min-instances=1 --max-instances=3 --memory=512Mi \
-  --set-secrets=DATABASE_URL=DATABASE_URL:latest,SUPABASE_SECRET_KEY=SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN:latest,JOBS_SECRET=JOBS_SECRET:latest \
+  --set-secrets=DATABASE_URL=DATABASE_URL:latest,SUPABASE_SECRET_KEY=SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN:latest,JOBS_SECRET=JOBS_SECRET:latest,STREAM_API_SECRET=STREAM_API_SECRET:latest \
   --set-env-vars=APP_BASE_URL=https://<DOMAIN>,DISCORD_GUILD_ID=…,DISCORD_ROLE_ID_DEV=…,DISCORD_ROLE_ID_ADMIN=…,DISCORD_ROLE_ID_STAFF=…,DISCORD_ROLE_ID_MOTW=…,DISCORD_RESULTS_TOP_CHANNEL_ID=…,DISCORD_RESULTS_CHANNEL_ID=…,DISCORD_MOTW_CHANNEL_ID=…,DISCORD_FEEDBACK_FORUM_CHANNEL_ID=…,DISCORD_FEEDBACK_TAG_BUG=…,DISCORD_FEEDBACK_TAG_IDEA=…,DISCORD_LEAGUE_CATEGORY_ID=…,DISCORD_ROLE_ID_BULI_PLAYER=…
 ```
 
@@ -476,7 +477,7 @@ differentiate.
 gcloud run deploy buli-hub-staging --image <first image> --region europe-west1 \
   --no-invoker-iam-check \
   --min-instances=0 --max-instances=2 --memory=512Mi \
-  --set-secrets=DATABASE_URL=STAGING_DATABASE_URL_POOLER:latest,SUPABASE_SECRET_KEY=STAGING_SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN_TEST:latest,JOBS_SECRET=JOBS_SECRET_STAGING:latest \
+  --set-secrets=DATABASE_URL=STAGING_DATABASE_URL_POOLER:latest,SUPABASE_SECRET_KEY=STAGING_SUPABASE_SECRET_KEY:latest,DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN_TEST:latest,JOBS_SECRET=JOBS_SECRET_STAGING:latest,STREAM_API_SECRET=STREAM_API_SECRET_STAGING:latest \
   --set-env-vars=APP_ENV=staging,APP_BASE_URL=https://<staging-url>,ENABLE_DEV_TOOLS=true,DEV_TOOLS_TOKEN=<long random string>,DISCORD_RESULTS_TOP_CHANNEL_ID=<test server channel>,DISCORD_RESULTS_CHANNEL_ID=<test server channel>,DISCORD_MOTW_CHANNEL_ID=<test server channel>,DISCORD_LEAGUE_CATEGORY_ID=<test server category>,DISCORD_ROLE_ID_BULI_PLAYER=<test server role>
 ```
 
@@ -623,7 +624,7 @@ file rather than from production data — the opposite of what this is for.)
 
 Route handlers under `/api/jobs/*` are Cloud Scheduler targets, authorized
 by a shared secret the scheduler sends as `Authorization: Bearer
-<JOBS_SECRET>` (`src/lib/jobs.ts`). The routes are idempotent converges, so
+<JOBS_SECRET>` (`src/lib/bearer.ts`). The routes are idempotent converges, so
 a repeated or overlapping run is harmless. Each environment has its own
 secret and its own jobs; a job never crosses environments because the URL
 and the secret both belong to one service.
@@ -693,3 +694,31 @@ secret answers 401, a service without `JOBS_SECRET` 503. On the staff
 dashboard the Discord card appears only while the last report says the
 server does not match the league, or when no run happened for over an hour
 (the scheduler is not calling).
+
+## 9. Stream API (gemeinde-streams)
+
+Route handlers under `/api/stream/*` are read-only endpoints for the stream
+backend (`../gemeinde-streams`): the played matches of the current season
+with team sheets and avatars, so the Regie can pick the match an overlay
+shows (`docs/plans/stream-api.md`). Authorized like the job routes, by a
+shared secret sent as `Authorization: Bearer <STREAM_API_SECRET>`
+(`src/lib/bearer.ts`), its own secret so the two callers rotate apart. The
+payload carries results the public views withhold (MotW embargo, spoiler
+protection): the caller is the stream that shows the match.
+
+Each environment has its own secret; the stream backend's `BULI_HUB_URL`
+and `BULI_HUB_API_KEY` point at exactly one of them. Development of the
+stream backend runs against staging.
+
+```bash
+printf '%s' "$(openssl rand -hex 32)" | gcloud secrets create STREAM_API_SECRET_STAGING --data-file=-
+gcloud run services update buli-hub-staging --region europe-west1 \
+  --update-secrets=STREAM_API_SECRET=STREAM_API_SECRET_STAGING:latest
+```
+
+Production: the same with `buli-hub` and `STREAM_API_SECRET`. Check:
+
+```bash
+curl -sS -H "Authorization: Bearer $(gcloud secrets versions access latest --secret STREAM_API_SECRET_STAGING)" \
+  https://<staging-url>/api/stream/matches | head -c 300
+```

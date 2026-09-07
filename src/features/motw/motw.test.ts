@@ -9,12 +9,14 @@ import {
   isYoutubeUrl,
   type MotwCandidate,
   type MotwPlayer,
+  motwEmbargo,
   motwTodo,
   recordability,
   selectableRounds,
   sortCandidates,
   toggleAllDivisions,
   weekState,
+  withholdScore,
   youtubeUrlSchema,
 } from "./motw";
 
@@ -438,6 +440,7 @@ describe("findMotw", () => {
     scoreB: 0,
     winnerId: "a",
     isMotw: matchId === "m2",
+    motwEmbargo: null,
   });
   const divisions: PublicDivision[] = [
     {
@@ -505,5 +508,59 @@ describe("findMotw", () => {
       },
     ];
     expect(findMotw(withBye, { matchId: "m3", youtubeUrl: null })).toBeNull();
+  });
+});
+
+describe("motwEmbargo", () => {
+  const noVod = { youtubeUrl: null };
+  const withVod = { youtubeUrl: "https://youtu.be/x" };
+  const guest = { isStaff: false, isParticipant: false };
+
+  it("does not apply to a match that is not the Match of the Week", () => {
+    expect(motwEmbargo({ selection: null, ...guest })).toBeNull();
+    expect(
+      motwEmbargo({ selection: null, isStaff: true, isParticipant: true }),
+    ).toBeNull();
+  });
+
+  it("ends for everyone once the VOD is attached", () => {
+    expect(motwEmbargo({ selection: withVod, ...guest })).toBeNull();
+    expect(
+      motwEmbargo({ selection: withVod, isStaff: true, isParticipant: false }),
+    ).toBeNull();
+  });
+
+  it("withholds the result from guests and foreign players", () => {
+    expect(motwEmbargo({ selection: noVod, ...guest })).toBe("withheld");
+  });
+
+  it("previews the result for staff and for either participant", () => {
+    expect(
+      motwEmbargo({ selection: noVod, isStaff: true, isParticipant: false }),
+    ).toBe("preview");
+    expect(
+      motwEmbargo({ selection: noVod, isStaff: false, isParticipant: true }),
+    ).toBe("preview");
+  });
+});
+
+describe("withholdScore", () => {
+  it("clears score and winner but keeps the row reported", () => {
+    const row = {
+      matchId: "m1",
+      reported: true,
+      scoreA: 2,
+      scoreB: 1,
+      winnerId: "a",
+    };
+    expect(withholdScore(row)).toEqual({
+      matchId: "m1",
+      reported: true,
+      scoreA: null,
+      scoreB: null,
+      winnerId: null,
+    });
+    // Pure: the input is untouched.
+    expect(row.scoreA).toBe(2);
   });
 });

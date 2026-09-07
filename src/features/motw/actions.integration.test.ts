@@ -25,12 +25,18 @@ vi.mock("@/features/roles/guard", () => ({ currentUser: currentUserMock }));
 // a test runner has no equivalent of.
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // Discord is a downstream mirror, not part of the gate.
+const { syncResultPostMock, syncMotwVodPostMock } = vi.hoisted(() => ({
+  syncResultPostMock: vi.fn(),
+  syncMotwVodPostMock: vi.fn(),
+}));
 vi.mock("@/features/discord-posts/sync", () => ({
-  syncResultPost: vi.fn(),
-  syncMotwVodPost: vi.fn(),
+  syncResultPost: syncResultPostMock,
+  syncMotwVodPost: syncMotwVodPostMock,
 }));
 
-const { removeMotw, selectMotw } = await import("./actions");
+const { removeMotw, saveMotwYoutubeUrl, selectMotw } = await import(
+  "./actions"
+);
 const { motwForWindow } = await import("./queries");
 
 const alice = randomUUID();
@@ -180,5 +186,26 @@ describe("removeMotw round gate", () => {
     const result = await removeMotw({ round: 1 });
     expect(result.ok).toBe(false);
     expect(await motwForWindow(windowId)).toHaveLength(1);
+  });
+});
+
+describe("saveMotwYoutubeUrl Discord mirror", () => {
+  it("posts the VOD announcement before the (now public) result", async () => {
+    await selectMotw({ matchId: matchByRound.get(2) as string });
+    syncResultPostMock.mockClear();
+    syncMotwVodPostMock.mockClear();
+
+    const result = await saveMotwYoutubeUrl({
+      round: 2,
+      url: "https://youtu.be/vgc-bundesliga",
+    });
+    expect(result).toEqual({ ok: true });
+    const matchId = matchByRound.get(2) as string;
+    expect(syncMotwVodPostMock).toHaveBeenCalledWith(matchId);
+    expect(syncResultPostMock).toHaveBeenCalledWith(matchId);
+    // The link ends the result embargo; the community meets the VOD first.
+    expect(syncMotwVodPostMock.mock.invocationCallOrder[0]).toBeLessThan(
+      syncResultPostMock.mock.invocationCallOrder[0],
+    );
   });
 });

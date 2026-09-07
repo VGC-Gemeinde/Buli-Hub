@@ -96,6 +96,7 @@ export default async function PlayerProfilePage({
     const rows = profileScheduleRows({
       playerId: userId,
       viewerId: current?.userId ?? null,
+      viewerIsStaff: isStaff,
       matches: buildPlayerMatches({
         matches,
         matchdaysByRound: new Map(matchdays.map((d) => [d.round, d])),
@@ -103,7 +104,7 @@ export default async function PlayerProfilePage({
         userId,
       }),
       resultByMatchId,
-      motwMatchIds: new Set(motwSelections.map((s) => s.matchId)),
+      motwSelections,
     });
     const groupName = subDivisionName(placement.tier, placement.position);
     season = {

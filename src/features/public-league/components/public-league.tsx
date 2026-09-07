@@ -363,7 +363,8 @@ function MatchRow({
   const mine = match.playerA.userId === meId || match.playerB?.userId === meId;
   // Foreign reported results are covered until revealed in place (or via the
   // global switch). The MotW ignores the switch: its orange cover pill is the
-  // row's only marker and stays until tapped (courtesy tag, not security).
+  // row's only marker and stays until tapped (courtesy tag, not security) —
+  // and before the VOD there is nothing behind it for a withheld viewer.
   const hidden = match.isMotw
     ? match.reported
     : scoreHidden({ reported: match.reported, isMine: mine, spoilersOff });
@@ -408,6 +409,7 @@ function MatchRow({
               scoreB={match.scoreB}
               covered={covered}
               motw={match.isMotw}
+              embargo={match.motwEmbargo}
               onReveal={() => setRevealed(true)}
             />
           ) : (

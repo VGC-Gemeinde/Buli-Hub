@@ -5,9 +5,34 @@ import { PlayerLink } from "@/features/player-profile/components/player-link";
 import type { Identity } from "@/features/season/dashboard";
 
 // Public, result-less match page for neutral visitors (guests and non-
-// participant players): the pairing with an "Offen" chip and an informational
+// participant players): the pairing with a status chip and an informational
 // edge-state card. Replaces the bare "Noch kein Ergebnis gemeldet." line
-// (GO-LIVE-POLISH §4.4). Once reported, the normal ReportSummary is shown.
+// (GO-LIVE-POLISH §4.4). Once reported, the normal ReportSummary is shown —
+// except for the Match of the Week before its VOD, whose result is withheld
+// from the public: that is the "played" state, same page, different words
+// (docs/plans/motw-result-embargo.md).
+export type PublicMatchState = "open" | "played";
+
+const STATE_COPY: Record<
+  PublicMatchState,
+  { chip: string; sub: string; line: string; title: string; body: string }
+> = {
+  open: {
+    chip: "Offen",
+    sub: "Best of 3",
+    line: "Ergebnis wird nach der Meldung hier angezeigt.",
+    title: "Noch kein Ergebnis",
+    body: "Die beiden Spieler haben ihr Match noch nicht gemeldet. Sobald ein Ergebnis vorliegt, findest du hier Spiele, Replays und Teamsheets.",
+  },
+  played: {
+    chip: "Gespielt",
+    sub: "Ergebnis folgt mit dem VOD",
+    line: "Das Ergebnis wird veröffentlicht, sobald das VOD online ist.",
+    title: "Ergebnis folgt mit dem VOD",
+    body: "Das Match of the Week ist gespielt. Spiele, Replays und Teamsheets erscheinen hier zusammen mit dem VOD, damit niemand vorher gespoilert wird.",
+  },
+};
+
 function Face({ identity }: { identity: Identity }) {
   return (
     <Avatar className="size-10 sm:size-[46px]">
@@ -25,13 +50,22 @@ export function PublicMatchView({
   seasonLabel,
   playerA,
   playerB,
+  state = "open",
 }: {
   round: number;
   groupName: string;
   seasonLabel: string;
   playerA: Identity;
   playerB: Identity;
+  state?: PublicMatchState;
 }) {
+  const copy = STATE_COPY[state];
+  // "Gespielt" reads as progress, so it gets the brand tint the grey "Offen"
+  // deliberately lacks.
+  const chipClass =
+    state === "played"
+      ? "bg-brand-blue/10 text-brand-blue dark:bg-white/12 dark:text-white"
+      : "bg-muted text-muted-foreground";
   return (
     <>
       <Link
@@ -58,11 +92,13 @@ export function PublicMatchView({
             <PlayerLink userId={playerA.userId} name={playerA.name} />
           </span>
         </div>
-        <div className="flex items-center gap-2 py-2.5 pr-4 pl-[68px]">
-          <span className="rounded-full bg-muted px-3 py-[3px] font-semibold text-[12px] text-muted-foreground uppercase tracking-[0.08em]">
-            Offen
+        <div className="flex flex-wrap items-center gap-2 py-2.5 pr-4 pl-[68px]">
+          <span
+            className={`rounded-full px-3 py-[3px] font-semibold text-[12px] uppercase tracking-[0.08em] ${chipClass}`}
+          >
+            {copy.chip}
           </span>
-          <span className="text-[12px] text-muted-foreground">Best of 3</span>
+          <span className="text-[12px] text-muted-foreground">{copy.sub}</span>
         </div>
         <div className="flex items-center gap-3 px-4 py-3">
           <Face identity={playerB} />
@@ -83,11 +119,13 @@ export function PublicMatchView({
           />
         </div>
         <div className="flex flex-col items-center gap-1">
-          <span className="whitespace-nowrap rounded-full bg-muted px-3 py-[3px] font-semibold text-[12px] text-muted-foreground uppercase tracking-[0.08em]">
-            Offen
+          <span
+            className={`whitespace-nowrap rounded-full px-3 py-[3px] font-semibold text-[12px] uppercase tracking-[0.08em] ${chipClass}`}
+          >
+            {copy.chip}
           </span>
-          <span className="font-medium text-[11px] text-muted-foreground">
-            Best of 3
+          <span className="whitespace-nowrap font-medium text-[11px] text-muted-foreground">
+            {copy.sub}
           </span>
         </div>
         <div className="flex min-w-0 items-center justify-end gap-3">
@@ -100,14 +138,11 @@ export function PublicMatchView({
         </div>
       </div>
 
-      <p className="mt-3.5 text-[13px] text-muted-foreground">
-        Ergebnis wird nach der Meldung hier angezeigt.
-      </p>
+      <p className="mt-3.5 text-[13px] text-muted-foreground">{copy.line}</p>
 
       <div className="mt-8">
-        <EmptyStateCard title="Noch kein Ergebnis" informational>
-          Die beiden Spieler haben ihr Match noch nicht gemeldet. Sobald ein
-          Ergebnis vorliegt, findest du hier Spiele, Replays und Teamsheets.
+        <EmptyStateCard title={copy.title} informational>
+          {copy.body}
         </EmptyStateCard>
       </div>
     </>

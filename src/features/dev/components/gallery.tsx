@@ -696,6 +696,7 @@ const profileRow = (
   scoreOpponent: null,
   isMine: false,
   isMotw: false,
+  motwEmbargo: null,
   ...extra,
 });
 const PROFILE_ROWS: ProfileScheduleRow[] = [
@@ -706,6 +707,7 @@ const PROFILE_ROWS: ProfileScheduleRow[] = [
     scoreSelf: 0,
     scoreOpponent: 2,
     isMotw: true,
+    motwEmbargo: null,
   }),
   profileRow("pr4", 4, {
     reported: true,
@@ -714,11 +716,27 @@ const PROFILE_ROWS: ProfileScheduleRow[] = [
     isMine: true,
   }),
   profileRow("pr5", 5, { opponent: null }),
+  // MotW before its VOD: withheld (no score in the row, inert pill) and the
+  // staff/participant preview (revealable, "not public" tooltip).
+  profileRow("pr6", 6, {
+    reported: true,
+    isMotw: true,
+    motwEmbargo: "withheld",
+  }),
+  profileRow("pr7", 7, {
+    reported: true,
+    scoreSelf: 2,
+    scoreOpponent: 1,
+    isMine: true,
+    isMotw: true,
+    motwEmbargo: "preview",
+  }),
 ];
 
-// Match of the Week: the featured pairing in all three block states. The
-// reported match doubles as the overview's featured row (badge instead of
-// score).
+// Match of the Week: the featured pairing in every block state. The reported
+// match (VOD live, result behind the reveal) doubles as the overview's
+// featured row (badge instead of score); before the VOD the result is
+// withheld from the public and previewed for staff/participants.
 const MOTW_MATCH: PublicMatch = {
   matchId: "pm1",
   round: 2,
@@ -730,17 +748,30 @@ const MOTW_MATCH: PublicMatch = {
   scoreB: 0,
   winnerId: DASH_STANDINGS[0].userId,
   isMotw: true,
+  motwEmbargo: null,
 };
-const MOTW_REPORTED: MotwBlockData = {
+const MOTW_WITH_VOD: MotwBlockData = {
   match: MOTW_MATCH,
   groupName: "Division 1a",
-  youtubeUrl: null,
+  youtubeUrl: "https://www.youtube.com/watch?v=vgc-bundesliga",
   rankA: 1,
   rankB: 4,
 };
-const MOTW_WITH_VOD: MotwBlockData = {
-  ...MOTW_REPORTED,
-  youtubeUrl: "https://www.youtube.com/watch?v=vgc-bundesliga",
+const MOTW_WITHHELD: MotwBlockData = {
+  ...MOTW_WITH_VOD,
+  match: {
+    ...MOTW_MATCH,
+    scoreA: null,
+    scoreB: null,
+    winnerId: null,
+    motwEmbargo: "withheld",
+  },
+  youtubeUrl: null,
+};
+const MOTW_PREVIEW: MotwBlockData = {
+  ...MOTW_WITH_VOD,
+  match: { ...MOTW_MATCH, motwEmbargo: "preview" },
+  youtubeUrl: null,
 };
 const MOTW_OPEN: MotwBlockData = {
   match: {
@@ -950,6 +981,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
               scoreB: null,
               winnerId: null,
               isMotw: false,
+              motwEmbargo: null,
             },
             // A foreign reported match — covered pill in the overview specimen.
             {
@@ -963,6 +995,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
               scoreB: 1,
               winnerId: DASH_STANDINGS[1].userId,
               isMotw: false,
+              motwEmbargo: null,
             },
             {
               matchId: "pm3",
@@ -975,6 +1008,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
               scoreB: null,
               winnerId: null,
               isMotw: false,
+              motwEmbargo: null,
             },
           ],
         },
@@ -1065,6 +1099,7 @@ function SpoilerSwitchDemo() {
 function SpoilerScoreDemo() {
   const [revealed, setRevealed] = useState(false);
   const [motwRevealed, setMotwRevealed] = useState(false);
+  const [motwPreviewRevealed, setMotwPreviewRevealed] = useState(false);
   return (
     <div className="flex items-center gap-5 font-semibold text-muted-foreground text-xs tabular-nums">
       <SpoilerScore
@@ -1079,6 +1114,23 @@ function SpoilerScoreDemo() {
         covered={!motwRevealed}
         motw
         onReveal={() => setMotwRevealed(true)}
+      />
+      {/* MotW before its VOD: inert pill (withheld) and the preview pill. */}
+      <SpoilerScore
+        scoreA={null}
+        scoreB={null}
+        covered
+        motw
+        embargo="withheld"
+        onReveal={() => {}}
+      />
+      <SpoilerScore
+        scoreA={2}
+        scoreB={0}
+        covered={!motwPreviewRevealed}
+        motw
+        embargo="preview"
+        onReveal={() => setMotwPreviewRevealed(true)}
       />
       <SpoilerScore scoreA={2} scoreB={0} covered={false} onReveal={() => {}} />
     </div>
@@ -1791,7 +1843,7 @@ export function Gallery() {
         <Specimen label="Globaler Schalter (schreibt das Cookie)">
           <SpoilerSwitchDemo />
         </Specimen>
-        <Specimen label="Verdeckter Score — antippen deckt auf">
+        <Specimen label="Verdeckter Score — antippen deckt auf (Standard · MotW · MotW zurückgehalten, inert · MotW-Vorschau · offen)">
           <SpoilerScoreDemo />
         </Specimen>
         <Specimen label="Match-Seite verdeckt — Showdown 2:1 (Maske, Notiz-Zeile, Spiele-Pills)">
@@ -1834,7 +1886,7 @@ export function Gallery() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-2xl">Spieler-Profil</h2>
-        <Specimen label="Spielplan (verdeckt · offen · MotW · eigenes Match · spielfrei) + Schalter">
+        <Specimen label="Spielplan (verdeckt · offen · MotW · eigenes Match · spielfrei · MotW zurückgehalten · MotW-Vorschau) + Schalter">
           <ProfileSpielplan rows={PROFILE_ROWS} initialSpoilersOff={false} />
         </Specimen>
         <Specimen label="Staff-Panel — aktiver Spieler / gedroppter Spieler (Aktionen ohne Staff-Login wirkungslos)">
@@ -1904,10 +1956,13 @@ export function Gallery() {
         <Specimen label="Billboard — noch offen (VOD-folgt-Platzhalter)">
           <MotwBlock motw={MOTW_OPEN} />
         </Specimen>
-        <Specimen label="Billboard — gemeldet, verdeckt (Klick deckt auf), ohne VOD">
-          <MotwBlock motw={MOTW_REPORTED} />
+        <Specimen label="Billboard — gemeldet, ohne VOD: Ergebnis zurückgehalten (Gast, nichts aufzudecken)">
+          <MotwBlock motw={MOTW_WITHHELD} />
         </Specimen>
-        <Specimen label="Billboard — gemeldet, verdeckt, mit VOD-Button">
+        <Specimen label="Billboard — gemeldet, ohne VOD: Vorschau für Staff/Beteiligte (Klick deckt auf, Marker 'noch nicht öffentlich')">
+          <MotwBlock motw={MOTW_PREVIEW} />
+        </Specimen>
+        <Specimen label="Billboard — gemeldet, mit VOD: verdeckt (Klick deckt auf), VOD-Button">
           <MotwBlock motw={MOTW_WITH_VOD} />
         </Specimen>
         <Specimen label="Staff-Workspace — aktuelle Woche gewählt, VOD fehlt (Aktionen ohne Staff-Login wirkungslos)">
@@ -1922,9 +1977,10 @@ export function Gallery() {
         <Specimen label="Staff-Workspace — vergangener Spieltag ohne Wahl (nachträglich wählbar)">
           <MotwManager weeks={MOTW_WEEKS} currentRound={3} initialRound={1} />
         </Specimen>
-        <Specimen label="Match-Seite: Banner (ohne / mit VOD)">
+        <Specimen label="Match-Seite: Banner (ohne VOD · ohne VOD, Ergebnis noch nicht öffentlich · mit VOD)">
           <div className="flex flex-col">
             <MotwMatchBanner round={2} youtubeUrl={null} />
+            <MotwMatchBanner round={2} youtubeUrl={null} notPublic />
             <MotwMatchBanner
               round={2}
               youtubeUrl="https://www.youtube.com/watch?v=vgc-bundesliga"
@@ -2060,6 +2116,7 @@ export function Gallery() {
                           scoreB: 1,
                           winnerId: "u1",
                           isMotw: false,
+                          motwEmbargo: null,
                         },
                         {
                           matchId: "m2",
@@ -2076,6 +2133,7 @@ export function Gallery() {
                           scoreB: null,
                           winnerId: null,
                           isMotw: false,
+                          motwEmbargo: null,
                         },
                         {
                           matchId: "m3",
@@ -2096,6 +2154,7 @@ export function Gallery() {
                           scoreB: null,
                           winnerId: null,
                           isMotw: false,
+                          motwEmbargo: null,
                         },
                       ],
                     },
@@ -2125,6 +2184,7 @@ export function Gallery() {
                           scoreB: 0,
                           winnerId: "u4",
                           isMotw: true,
+                          motwEmbargo: null,
                         },
                       ],
                     },
@@ -2343,6 +2403,16 @@ export function Gallery() {
             seasonLabel="Saison 1"
             playerA={SUMMARY_A}
             playerB={SUMMARY_B}
+          />
+        </Specimen>
+        <Specimen label="Öffentliche Sicht (Gast, Match of the Week gespielt, Ergebnis folgt mit dem VOD)">
+          <PublicMatchView
+            round={2}
+            groupName="Division 1a"
+            seasonLabel="Saison 1"
+            playerA={SUMMARY_A}
+            playerB={SUMMARY_B}
+            state="played"
           />
         </Specimen>
       </section>

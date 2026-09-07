@@ -38,18 +38,25 @@ Rudimentary-but-intentional design; hand-off + design pass come later.
   round is the current Spieltag: the pairing with division/group context, a
   "Watch on YouTube" button once the link exists, and the result behind
   click-to-reveal once reported. No MotW for the current round → no block.
-- **Spoiler protection, permanent**: the MotW result is never shown openly
-  and ignores the global spoiler switch. In the Spieltag match list (current
-  *and* past rounds) the row shows the orange "MotW" cover pill instead of
-  the score (tap reveals in place — the pill is the row's only marker, see
-  `design/SPOILER-SCHUTZ.md` §2.3). On `/match/[matchId]` neutral viewers
-  get the inline-masked result page with the MotW notice copy (participants
-  and staff see everything, as today). Reveal state is client-side only —
-  the score may exist in the payload; this is a courtesy spoiler tag, not
-  security. The standings include the result immediately (accepted leak).
+- **Result embargo until the VOD** (`docs/plans/motw-result-embargo.md`):
+  while the pick has no YouTube link, the result is withheld from everyone
+  but staff and the two participants — it never reaches their browser. The
+  row keeps an inert orange pill, the billboard says "Ergebnis folgt mit dem
+  VOD", the match page shows the pairing as "Gespielt" without games,
+  replays or teamsheets. Staff and participants see the result with a "Noch
+  nicht öffentlich" marker.
+- **Spoiler protection after the VOD, permanent**: the MotW result is never
+  shown openly and ignores the global spoiler switch. In the Spieltag match
+  list (current *and* past rounds) the row shows the orange "MotW" cover
+  pill instead of the score (tap reveals in place — the pill is the row's
+  only marker, see `design/SPOILER-SCHUTZ.md` §2.3). On `/match/[matchId]`
+  neutral viewers get the inline-masked result page with the MotW notice
+  copy (participants and staff see everything, as today). Reveal state is
+  client-side only — the score is in the payload; this is a courtesy
+  spoiler tag, not security. The standings include the result immediately
+  (accepted leak, also during the embargo).
 
 **Out (deferred):**
-- Discord announcement of the MotW / VOD.
 - MotW history/archive page.
 - Any casting/scheduling workflow around the featured match.
 
@@ -90,6 +97,8 @@ and round.
 - `findMotw(divisions, selection)` — locate the featured `PublicMatch` plus
   its group name inside the already-built overview divisions (no extra
   identity queries) for the prominent block.
+- `motwEmbargo` / `withholdScore` — the result embargo before the VOD
+  (`docs/plans/motw-result-embargo.md`).
 
 **Queries (`queries.ts`, integration-tested):**
 - `motwForWindow(windowId)` — all selections `{ round, matchId, youtubeUrl }`;
@@ -112,12 +121,14 @@ and round.
 ## Views
 
 - **Public overview** (`src/features/public-league/`): `publicLeagueOverview`
-  additionally fetches `motwForWindow`; `PublicMatch` gains `isMotw` (scores
-  stay filled — the block's reveal uses them); `PublicOverview` gains the
-  current round's block data (or null). `<MotwBlock>` renders above the
-  division switcher; `<MatchRow>` renders the orange MotW cover pill instead
-  of any score for `isMotw` rows — every round, permanently (`<MotwBadge>`
-  itself lives on in the match-page banner and the staff manager).
+  additionally fetches `motwForWindow` and takes the viewer; `PublicMatch`
+  gains `isMotw` and `motwEmbargo` (scores stay filled for the block's
+  reveal unless the result is withheld from this viewer); `PublicOverview`
+  gains the current round's block data (or null). `<MotwBlock>` renders
+  above the division switcher; `<MatchRow>` renders the orange MotW cover
+  pill instead of any score for `isMotw` rows — every round, permanently
+  (`<MotwBadge>` itself lives on in the match-page banner and the staff
+  manager).
 - **Match page** (`/app/match/[matchId]`): a `<MotwMatchBanner>` (badge +
   Spieltag + YouTube button) for every viewer; neutral viewers get the result
   summary wrapped in `<MotwSpoiler>` (pairing header + cover card,

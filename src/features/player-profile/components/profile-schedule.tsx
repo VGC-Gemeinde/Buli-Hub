@@ -142,6 +142,7 @@ function ScheduleRow({
                 scoreB={row.scoreOpponent}
                 covered={covered}
                 motw={row.isMotw}
+                embargo={row.motwEmbargo}
                 onReveal={() => setRevealed(true)}
               />
             ) : (

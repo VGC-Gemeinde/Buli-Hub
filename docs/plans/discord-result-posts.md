@@ -10,9 +10,10 @@ into three channels is `docs/plans/discord-result-channels.md`.
 Match results should reach the community where it lives: the Discord result
 channels. Every publicly visible result gets a message in the historical
 community format (pairings readable, score behind Discord spoiler tags, fixed
-message shape). The Match of the Week is excluded — a result post would
-defeat its spoiler protection — and instead gets one announcement when its
-VOD link lands. The channels **mirror the hub's public state**: one message
+message shape). The Match of the Week gets one announcement when its VOD
+link lands, and its result post only then — the result is under embargo
+until the VOD is live (`docs/plans/motw-result-embargo.md`). The channels
+**mirror the hub's public state**: one message
 per match, edited, moved or deleted as the state changes, with a message id
 stored per post. Which channel a post belongs to (results of Division 1 and
 2, results of every other division, MotW announcements) is
@@ -30,10 +31,12 @@ schema + logic + action hooks.
   awards (free win / double loss). Corrections **edit** the message (with a
   trailing `*(korrigiert)*` line); reopen **deletes** it; a re-report posts
   fresh.
-- **MotW exclusion, symmetric**: a featured match never gets a result post.
+- **MotW embargo, symmetric**: a featured match gets its result post only
+  once its VOD link exists, right after the VOD announcement, into the
+  division's results channel with "· Match of the Week" in the header.
   Selecting a MotW deletes an already-existing result post for that match;
-  removing the pick re-posts the (public) result. The channel always matches
-  what the hub shows openly.
+  clearing the link deletes it again; removing the pick re-posts the
+  (public) result. The channel always matches what the hub shows openly.
 - **MotW VOD post** (`kind = motw_vod`): posted when a YouTube link is first
   attached, edited when the link changes, deleted when the link or the pick
   is removed. Never contains the result.
@@ -113,7 +116,7 @@ FK, RLS on, no policies — server-only).
 - `motwVodMessage(input)` — the VOD announcement.
 - `shouldPostResult(input)` — whether the channel should show a result post
   for a match (no public result → no; pending free win → no; featured as
-  MotW → no) — the converge decision, exhaustively tested.
+  MotW without VOD → no) — the converge decision, exhaustively tested.
 
 **Sync (`sync.ts`, best-effort — every entry point catches, logs, returns):**
 - `syncResultPost(matchId)` — loads current state (match, result, MotW flag,
@@ -138,7 +141,8 @@ bot token, 404 surfaced as a typed outcome (not an exception).
   prior result post) *and* for a replaced match (its result may return);
   `syncMotwVodPost` for a replaced pick (URL cleared → message deleted)
 - `removeMotw` → `syncResultPost` + `syncMotwVodPost`
-- `saveMotwYoutubeUrl` → `syncMotwVodPost`
+- `saveMotwYoutubeUrl` → `syncMotwVodPost`, then `syncResultPost` (the link
+  ends the embargo: announcement first, then the result)
 
 ## Dev tooling
 

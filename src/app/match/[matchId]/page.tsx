@@ -5,6 +5,7 @@ import { DropBanner } from "@/features/drops/components/drop-banner";
 import { droppedIdsForSubDivision } from "@/features/drops/queries";
 import { SeasonGates } from "@/features/membership/components/season-gates";
 import { MotwMatchBanner } from "@/features/motw/components/motw-match-banner";
+import { motwEmbargo } from "@/features/motw/motw";
 import { motwByMatchId } from "@/features/motw/queries";
 import { DisputeDialog } from "@/features/reporting/components/dispute-dialog";
 import { PublicMatchView } from "@/features/reporting/components/public-match-view";
@@ -83,9 +84,12 @@ export default async function MatchReportPage({
   }
 
   const result = await getMatchResult(matchId);
-  // Match of the Week: banner for everyone; the result is spoiler-protected
-  // for neutral viewers (participants and staff see it as usual).
+  // Match of the Week: banner for everyone. Before the VOD the result is
+  // withheld from neutral viewers entirely (it never reaches the page);
+  // afterwards it is spoiler-protected for them. Participants and staff see
+  // it as usual, marked as not public while the embargo holds.
   const motw = await motwByMatchId(matchId);
+  const embargo = motwEmbargo({ selection: motw, isStaff, isParticipant });
   // The global spoiler preference (cookie): with protection on, neutral
   // viewers get a cover instead of the summary; the MotW ignores the switch.
   const spoilersOff = parseSpoilersOff(
@@ -102,7 +106,8 @@ export default async function MatchReportPage({
     !privileged &&
     result?.outcome === "free_win" &&
     result.confirmedAt === null;
-  const shownResult = pendingFreeWinHidden ? null : result;
+  const shownResult =
+    pendingFreeWinHidden || embargo === "withheld" ? null : result;
   // Dispute machinery stays with participants + staff.
   const dispute = result && privileged ? await matchOpenDispute(matchId) : null;
   // Once decided, the decision and its explanation are what the players get
@@ -191,7 +196,11 @@ export default async function MatchReportPage({
       />
       <main className="mx-auto w-full max-w-[760px] flex-1 px-6 pt-9 pb-[168px] sm:px-8 sm:pb-[140px]">
         {motw ? (
-          <MotwMatchBanner round={motw.round} youtubeUrl={motw.youtubeUrl} />
+          <MotwMatchBanner
+            round={motw.round}
+            youtubeUrl={motw.youtubeUrl}
+            notPublic={embargo === "preview" && result !== null}
+          />
         ) : null}
         {isDropDecided ? (
           <DropBanner
@@ -281,6 +290,14 @@ export default async function MatchReportPage({
               seasonLabel={seasonLabel}
               playerA={match.playerA}
               playerB={match.playerB}
+              // A withheld MotW result: played, but not for this viewer yet.
+              state={
+                embargo === "withheld" &&
+                result !== null &&
+                !pendingFreeWinHidden
+                  ? "played"
+                  : "open"
+              }
             />
           )
         ) : null}

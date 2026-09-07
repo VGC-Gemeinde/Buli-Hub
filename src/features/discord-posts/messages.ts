@@ -27,6 +27,9 @@ export type ResultMessageInput = {
   corrected: boolean;
   // Absolute hub link, or null when APP_BASE_URL is not configured.
   matchUrl: string | null;
+  // The Match of the Week's result post lands only once its VOD is live,
+  // typically days after the Spieltag — the header says why it is late.
+  isMotw: boolean;
 };
 
 function scoreLine(input: ResultMessageInput): string {
@@ -42,8 +45,9 @@ function scoreLine(input: ResultMessageInput): string {
 }
 
 export function resultMessage(input: ResultMessageInput): string {
+  const header = `VGC Bundesliga · ${input.groupName} · Spieltag ${input.round}`;
   const blocks: string[] = [
-    `__**VGC Bundesliga · ${input.groupName} · Spieltag ${input.round}**__`,
+    `__**${input.isMotw ? `${header} · Match of the Week` : header}**__`,
     scoreLine(input),
   ];
 
@@ -97,17 +101,21 @@ export function motwVodMessage(input: {
 
 // Whether the results channel should carry a result post for a match — the
 // converge decision. "No" for unreported matches, results the hub itself
-// still hides (pending free wins), the Match of the Week (its result is
-// permanently spoiler-protected; the VOD post is its only announcement), and
-// drop-decided matches (drop free wins get no messages; existing posts of
-// played matches stay as historical records until the match is touched
-// again).
+// still hides (pending free wins), the Match of the Week while its result is
+// under embargo (no VOD yet; once the link is attached the result is public
+// and posted like any other), and drop-decided matches (drop free wins get
+// no messages; existing posts of played matches stay as historical records
+// until the match is touched again).
 export function shouldPostResult(input: {
-  isMotw: boolean;
+  // The match's MotW selection, null when it is not the featured match.
+  motw: { youtubeUrl: string | null } | null;
   hasDroppedParticipant: boolean;
   result: { outcome: MatchOutcome; confirmedAt: Date | null } | null;
 }): boolean {
-  if (input.isMotw || input.hasDroppedParticipant || input.result === null) {
+  if (input.motw !== null && input.motw.youtubeUrl === null) {
+    return false;
+  }
+  if (input.hasDroppedParticipant || input.result === null) {
     return false;
   }
   if (

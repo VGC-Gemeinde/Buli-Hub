@@ -182,7 +182,11 @@ export async function saveMotwYoutubeUrl(input: {
   }
   revalidate(matchId);
   // Discord mirror: first link posts the announcement, a changed link edits
-  // it, a cleared link deletes it.
+  // it, a cleared link deletes it. The link also ends the result embargo, so
+  // the result post follows the announcement (and disappears with a cleared
+  // link) — announcement first, so the community meets the VOD before the
+  // score.
   await syncMotwVodPost(matchId);
+  await syncResultPost(matchId);
   return { ok: true };
 }

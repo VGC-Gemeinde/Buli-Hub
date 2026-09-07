@@ -2,6 +2,12 @@
 // community format with hub vocabulary (docs/plans/discord-result-posts.md).
 // Scores and outcomes sit behind Discord spoiler tags; both names are always
 // bold (bolding only the winner would leak through the spoiler).
+//
+// Link previews: a URL in angle brackets gets no embed. Every link is wrapped
+// that way — team sheets, replays, the hub link — except the two videos,
+// whose preview *is* the point: the Match-of-the-Week VOD and a Cartridge
+// match video (usually a YouTube link as well).
+const noPreview = (url: string): string => `<${url}>`;
 
 export type MatchOutcome = "normal" | "free_win" | "double_loss";
 
@@ -54,25 +60,26 @@ export function resultMessage(input: ResultMessageInput): string {
   if (input.outcome === "normal") {
     if (input.playerATeamUrl && input.playerBTeamUrl) {
       blocks.push(
-        `Team von ${input.playerAName}: ${input.playerATeamUrl}\n` +
-          `Team von ${input.playerBName}: ${input.playerBTeamUrl}`,
+        `Team von ${input.playerAName}: ${noPreview(input.playerATeamUrl)}\n` +
+          `Team von ${input.playerBName}: ${noPreview(input.playerBTeamUrl)}`,
       );
     }
     const [game1, game2, game3] = input.replayUrls;
     if (input.platform === "showdown" && game1 && game2) {
       blocks.push(
-        `Game 1: *${game1}*\n` +
-          `Game 2: *${game2}*\n` +
-          `Game 3: ||*${game3 ?? game2}*||`,
+        `Game 1: *${noPreview(game1)}*\n` +
+          `Game 2: *${noPreview(game2)}*\n` +
+          `Game 3: ||*${noPreview(game3 ?? game2)}*||`,
       );
     }
     if (input.platform === "cartridge" && input.videoUrl) {
+      // Unwrapped on purpose: the video preview is wanted here.
       blocks.push(`Video: *${input.videoUrl}*`);
     }
   }
 
   if (input.matchUrl) {
-    blocks.push(`Zum Match: <${input.matchUrl}>`);
+    blocks.push(`Zum Match: ${noPreview(input.matchUrl)}`);
   }
   if (input.corrected) {
     blocks.push("*(korrigiert)*");
@@ -94,7 +101,7 @@ export function motwVodMessage(input: {
     `**${input.playerAName}** vs. **${input.playerBName}**: das VOD ist da!\n${input.youtubeUrl}`,
   ];
   if (input.matchUrl) {
-    blocks.push(`Zum Match: <${input.matchUrl}>`);
+    blocks.push(`Zum Match: ${noPreview(input.matchUrl)}`);
   }
   return blocks.join("\n\n");
 }

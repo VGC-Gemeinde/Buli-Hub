@@ -43,15 +43,22 @@ describe("resultMessage", () => {
 
 **Alice**  ||2 - 1||  **Bob**
 
-Team von Alice: https://pokepast.es/aaa
-Team von Bob: https://pokepast.es/bbb
+Team von Alice: <https://pokepast.es/aaa>
+Team von Bob: <https://pokepast.es/bbb>
 
-Game 1: *https://replay.pokemonshowdown.com/g1*
-Game 2: *https://replay.pokemonshowdown.com/g2*
-Game 3: ||*https://replay.pokemonshowdown.com/g3*||
+Game 1: *<https://replay.pokemonshowdown.com/g1>*
+Game 2: *<https://replay.pokemonshowdown.com/g2>*
+Game 3: ||*<https://replay.pokemonshowdown.com/g3>*||
 
 Zum Match: <https://hub.example/match/m1>`,
     );
+  });
+
+  it("suppresses link previews for everything but the match video", () => {
+    const message = resultMessage(BASE);
+    // Every URL sits in angle brackets: no embed for teams, replays, hub link.
+    const bare = message.match(/(?<!<)https?:\/\/\S+/g) ?? [];
+    expect(bare).toEqual([]);
   });
 
   it("fills the Game-3 slot with game 2's replay as a decoy on a 2-0", () => {
@@ -62,7 +69,7 @@ Zum Match: <https://hub.example/match/m1>`,
       replayUrls: BASE.replayUrls.slice(0, 2),
     });
     expect(message).toContain(
-      "Game 3: ||*https://replay.pokemonshowdown.com/g2*||",
+      "Game 3: ||*<https://replay.pokemonshowdown.com/g2>*||",
     );
     // Same line count as a three-game series — the shape never leaks.
     expect(message.split("\n").length).toBe(
@@ -77,7 +84,9 @@ Zum Match: <https://hub.example/match/m1>`,
       replayUrls: [],
       videoUrl: "https://youtu.be/QbxY2WuzCrU",
     });
+    // The one link in a result post that keeps its preview.
     expect(message).toContain("Video: *https://youtu.be/QbxY2WuzCrU*");
+    expect(message).not.toContain("<https://youtu.be/QbxY2WuzCrU>");
     expect(message).not.toContain("Game 1");
   });
 

@@ -66,26 +66,29 @@ __**VGC Bundesliga · Division 1a · Spieltag 3**__
 
 **Alice**  ||2 - 0||  **Bob**
 
-Team von Alice: https://pokepast.es/…
-Team von Bob: https://pokepast.es/…
+Team von Alice: <https://pokepast.es/…>
+Team von Bob: <https://pokepast.es/…>
 
-Game 1: *https://replay.pokemonshowdown.com/…*
-Game 2: *https://replay.pokemonshowdown.com/…*
-Game 3: ||*https://replay.pokemonshowdown.com/…*||
+Game 1: *<https://replay.pokemonshowdown.com/…>*
+Game 2: *<https://replay.pokemonshowdown.com/…>*
+Game 3: ||*<https://replay.pokemonshowdown.com/…>*||
 
 Zum Match: <https://…/match/{id}>
 ```
 
 - **Cartridge**: team lines plus `Video: *…*` when set (italic like the
   replay lines, unspoilered — the score spoiler above is the only cover; the
-  link itself leaks nothing); no game lines.
+  link itself leaks nothing); no game lines. The video URL is the one link
+  in a result post that is **not** wrapped in `<>`: its preview is wanted.
 - **Free win / double loss**: header + `**Alice**  ||Freewin für Alice||
   **Bob**` (the winner must live inside the spoiler — outside it would leak,
   omitted entirely it would be lost) or `||Doppelniederlage||`, + hub link.
   No teams, no free-win reason (staff-internal).
 - **Corrected**: trailing `*(korrigiert)*` line.
-- Hub link wrapped in `<>` (suppresses the embed preview); team/replay links
-  raw, as historically.
+- **No link previews**: every URL is wrapped in `<>` (suppresses the embed),
+  so a post is text, not a stack of preview cards. The two exceptions are
+  the videos, whose preview is the point: the Cartridge match video and the
+  MotW VOD (below).
 - **MotW VOD post**: header `__**VGC Bundesliga · Match of the Week ·
   Spieltag 3**__`, line `**Alice** vs. **Bob** — das VOD ist da!`, the
   YouTube URL **unwrapped** (the video preview is the announcement), hub

@@ -142,6 +142,9 @@ import { CopyLinkButton } from "@/features/staff/components/copy-link-button";
 import { PreseasonTodoCard } from "@/features/staff/components/preseason-todo-card";
 import { SeasonCard } from "@/features/staff/components/registration-status";
 import type { RegistrationState } from "@/features/staff/registration-window";
+import { StreamPhotoCard } from "@/features/stream-photos/components/stream-photo-card";
+import { StreamPhotoHint } from "@/features/stream-photos/components/stream-photo-hint";
+import { StreamPhotoMark } from "@/features/stream-photos/components/stream-photo-mark";
 import { TeamSheetCards } from "@/features/teamsheets/components/team-sheet-cards";
 import { TeamsheetField } from "@/features/teamsheets/components/teamsheet-field";
 import {
@@ -800,6 +803,19 @@ const MOTW_OPEN: MotwBlockData = {
   rankB: 4,
 };
 
+// A stand-in stream photo for the gallery: an inline SVG in the overlay's
+// proportions, so the marks and previews have something to show without the
+// gallery depending on a seeded upload.
+const GALLERY_STREAM_PHOTO =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 690">' +
+      '<rect width="420" height="690" fill="#021f66"/>' +
+      '<circle cx="210" cy="250" r="90" fill="#ff7b00"/>' +
+      '<rect x="60" y="380" width="300" height="240" rx="40" fill="#ff7b00"/>' +
+      "</svg>",
+  );
+
 // Recording holds: the staff workspace's list (one stale, reported hold; one
 // open hold of the running week) and the picker (held, reported, markable).
 function recordingMatch(
@@ -815,8 +831,19 @@ function recordingMatch(
     round,
     tier: Number(groupName.replace(/\D/g, "")) || 1,
     groupName,
-    playerA: { userId: `${matchId}-a`, name: a, avatarUrl: null },
-    playerB: { userId: `${matchId}-b`, name: b, avatarUrl: null },
+    playerA: {
+      userId: `${matchId}-a`,
+      name: a,
+      avatarUrl: null,
+      // One side with a stream photo, one without, so both marks show.
+      streamPhotoUrl: GALLERY_STREAM_PHOTO,
+    },
+    playerB: {
+      userId: `${matchId}-b`,
+      name: b,
+      avatarUrl: null,
+      streamPhotoUrl: null,
+    },
     reported: false,
     pendingFreeWin: false,
     decidedByDrop: false,
@@ -895,6 +922,8 @@ function motwPlayer(
     userId: `motw-${name}`,
     name,
     avatarUrl: null,
+    // Alternating, so the picker shows both marks side by side.
+    streamPhotoUrl: hasCaptureCard ? GALLERY_STREAM_PHOTO : null,
     rank,
     wins,
     losses,
@@ -1997,7 +2026,7 @@ export function Gallery() {
         <Specimen label="Spielplan (verdeckt · offen · MotW · eigenes Match · spielfrei · MotW zurückgehalten · MotW-Vorschau · Aufnahme zurückgehalten) + Schalter">
           <ProfileSpielplan rows={PROFILE_ROWS} initialSpoilersOff={false} />
         </Specimen>
-        <Specimen label="Staff-Panel — aktiver Spieler / gedroppter Spieler (Aktionen ohne Staff-Login wirkungslos)">
+        <Specimen label="Staff-Panel — aktiver Spieler mit Stream-Foto / gedroppter Spieler ohne (Aktionen ohne Staff-Login wirkungslos)">
           <div className="flex flex-col gap-4">
             <ProfileStaffPanel
               player={{
@@ -2007,11 +2036,13 @@ export function Gallery() {
               }}
               dropped={false}
               dropReason={null}
+              streamPhotoUrl={GALLERY_STREAM_PHOTO}
             />
             <ProfileStaffPanel
               player={{ userId: "c", name: "Pawmi", groupName: "Division 1a" }}
               dropped
               dropReason="Inaktivität, mehrfach nicht erreichbar."
+              streamPhotoUrl={null}
             />
           </div>
         </Specimen>
@@ -2143,6 +2174,25 @@ export function Gallery() {
             <RecordingBanner round={3} />
             <RecordingBanner round={3} notPublic />
           </div>
+        </Specimen>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-2xl">Stream-Foto</h2>
+        <Specimen label="Profil-Karte — noch kein Bild (Auswahl ohne Login wirkungslos)">
+          <StreamPhotoCard photoUrl={null} />
+        </Specimen>
+        <Specimen label="Profil-Karte — Bild hinterlegt">
+          <StreamPhotoCard photoUrl={GALLERY_STREAM_PHOTO} />
+        </Specimen>
+        <Specimen label="Staff-Marke — mit Bild (anklickbar) · ohne Bild">
+          <div className="flex items-center gap-4">
+            <StreamPhotoMark photoUrl={GALLERY_STREAM_PHOTO} name="Falinks" />
+            <StreamPhotoMark photoUrl={null} name="Wooloo" />
+          </div>
+        </Specimen>
+        <Specimen label="Hinweis im Match-Banner (nur für die beiden Spieler, nur ohne Bild)">
+          <StreamPhotoHint />
         </Specimen>
       </section>
 

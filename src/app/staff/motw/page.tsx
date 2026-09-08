@@ -21,6 +21,8 @@ import { roleAtLeast } from "@/features/roles/roles";
 import { currentMatchday, type Identity } from "@/features/season/dashboard";
 import { matchdaysForWindow } from "@/features/season/queries";
 import { latestWindow } from "@/features/staff/queries";
+import { streamPhotoUrl } from "@/features/stream-photos/photo";
+import { streamPhotoPathsFor } from "@/features/stream-photos/queries";
 import { germanToday } from "@/lib/german-time";
 
 // Staff workspace for the Match of the Week: one Spieltag at a time, paged
@@ -54,12 +56,18 @@ export default async function StaffMotwPage({
     windowPlayerForm(window.id),
     profileFlags(),
   ]);
+  const photos = await streamPhotoPathsFor([
+    ...new Set(
+      overview.flatMap((match) => [match.playerA.userId, match.playerB.userId]),
+    ),
+  ]);
 
   const toPlayer = (identity: Identity): MotwPlayer => {
     const record: PlayerForm | undefined = form.get(identity.userId);
     const profile = flags.get(identity.userId);
     return {
       ...identity,
+      streamPhotoUrl: streamPhotoUrl(photos.get(identity.userId) ?? null),
       rank: record?.rank ?? null,
       wins: record?.wins ?? 0,
       losses: record?.losses ?? 0,

@@ -33,7 +33,14 @@ beforeAll(async () => {
     await db.execute(sql`insert into auth.users (id) values (${id})`);
   }
   await db.insert(profiles).values([
-    { userId: alice, displayName: "Alice", avatarUrl: "https://cdn/alice" },
+    {
+      userId: alice,
+      displayName: "Alice",
+      // The Discord avatar stays on the profile and out of the payload; the
+      // stream photo is what the overlay gets.
+      avatarUrl: "https://cdn/alice",
+      streamPhotoPath: `${alice}/photo.webp`,
+    },
     { userId: bob, username: "bobby" },
     { userId: carol, displayName: "Carol" },
     { userId: dave, displayName: "Dave" },
@@ -176,13 +183,15 @@ describe("listStreamMatches", () => {
 });
 
 describe("getStreamMatch", () => {
-  it("carries sheets and avatars", async () => {
+  it("carries sheets and the stream photo, never the Discord avatar", async () => {
     const match = await getStreamMatch(windowId, played);
     expect(match?.sheets).toEqual({
       a: "Garchomp @ Life Orb",
       b: "Whimsicott @ Occa Berry",
     });
-    expect(match?.playerA.avatarUrl).toBe("https://cdn/alice");
+    expect(match?.playerA.photoUrl).toContain(`${alice}/photo.webp`);
+    expect(match?.playerB.photoUrl).toBeNull();
+    expect(match?.playerA.avatarUrl).toBeNull();
     expect(match?.playerB.avatarUrl).toBeNull();
   });
 

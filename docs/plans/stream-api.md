@@ -46,13 +46,13 @@ GET /api/stream/matches
 GET /api/stream/matches/<id>
 {
   ...dasselbe Match,
-  playerA: { id, name, avatarUrl: string | null },
-  playerB: { id, name, avatarUrl: string | null },
+  playerA: { id, name, photoUrl: string | null, avatarUrl: null },
+  playerB: { id, name, photoUrl: string | null, avatarUrl: null },
   sheets: { a: ots, b: ots }
 }
 ```
 
-`name` über `playerName(displayName, username)`. `avatarUrl` ist die gespeicherte Discord-CDN-URL; die Größe hängt der Aufrufer an (`?size=1024`). Gruppennamen über `subDivisionName` und `subDivisionShortName`.
+`name` über `playerName(displayName, username)`. `photoUrl` ist das Bild, das der Spieler selbst für den Stream hochgeladen hat (`docs/plans/stream-photos.md`), oder null; das Overlay zeigt dann seinen Platzhalter. Der Discord-Avatar wird nicht mehr ausgeliefert: `avatarUrl` ist nur noch als Schlüssel vorhanden und immer null, bis `gemeinde-streams` auf `photoUrl` umgestellt ist. Gruppennamen über `subDivisionName` und `subDivisionShortName`.
 
 ## Code
 

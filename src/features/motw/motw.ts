@@ -196,6 +196,10 @@ export function findMotw(
 // table `findMotw` reads for the billboard's "Platz {n}". Null when the player
 // has no table yet.
 export type MotwPlayer = Identity & {
+  // The picture the stream would use, so staff see who still owes one
+  // (docs/plans/stream-photos.md). Unrelated to `avatarUrl`, which is the
+  // Discord avatar the hub itself shows.
+  streamPhotoUrl: string | null;
   rank: number | null;
   wins: number;
   losses: number;

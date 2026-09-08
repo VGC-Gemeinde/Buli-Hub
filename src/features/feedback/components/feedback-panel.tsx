@@ -9,12 +9,9 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { ALLOWED_IMAGE_TYPES } from "@/lib/image";
 import { cn } from "@/lib/utils";
-import {
-  ALLOWED_IMAGE_TYPES,
-  attachmentOutcome,
-  MAX_ATTACHMENTS,
-} from "../attachments";
+import { attachmentOutcome, MAX_ATTACHMENTS } from "../attachments";
 import { BODY_MAX, type FeedbackKind, TITLE_MAX } from "../feedback";
 
 // The intake form's body, presentational only — every piece of state comes

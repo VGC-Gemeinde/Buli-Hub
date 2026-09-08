@@ -1,5 +1,10 @@
 import type { Identity, MatchdayLite } from "@/features/season/dashboard";
 
+// A player as the recording workspace shows them: identity plus the picture
+// the stream would use (docs/plans/stream-photos.md), so staff can see at a
+// glance who still owes one.
+export type RecordingPlayer = Identity & { streamPhotoUrl: string | null };
+
 // Pure domain logic for recording holds (docs/plans/recording-holds.md): which
 // matches staff may hold, which holds have outlived their Spieltag, and how
 // the dashboard card sums those up.
@@ -68,8 +73,8 @@ export type RecordingMatch = {
   round: number;
   tier: number;
   groupName: string;
-  playerA: Identity;
-  playerB: Identity;
+  playerA: RecordingPlayer;
+  playerB: RecordingPlayer;
   reported: boolean;
   // A free win awaiting staff confirmation (the "Freewin offen" chip).
   pendingFreeWin: boolean;

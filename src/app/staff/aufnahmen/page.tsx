@@ -15,6 +15,8 @@ import { roleAtLeast } from "@/features/roles/roles";
 import { currentMatchday } from "@/features/season/dashboard";
 import { matchdaysForWindow } from "@/features/season/queries";
 import { latestWindow } from "@/features/staff/queries";
+import { streamPhotoUrl } from "@/features/stream-photos/photo";
+import { streamPhotoPathsFor } from "@/features/stream-photos/queries";
 import { germanToday } from "@/lib/german-time";
 
 // Staff workspace for recordings (docs/plans/recording-holds.md): the matches
@@ -41,13 +43,26 @@ export default async function StaffRecordingsPage() {
     holdsForWindow(window.id),
   ]);
   const heldIds = new Set(holds.map((h) => h.matchId));
+  const photos = await streamPhotoPathsFor([
+    ...new Set(
+      overview.flatMap((match) => [match.playerA.userId, match.playerB.userId]),
+    ),
+  ]);
+  const withPhoto = (identity: {
+    userId: string;
+    name: string;
+    avatarUrl: string | null;
+  }) => ({
+    ...identity,
+    streamPhotoUrl: streamPhotoUrl(photos.get(identity.userId) ?? null),
+  });
   const matches: RecordingMatch[] = overview.map((match) => ({
     matchId: match.matchId,
     round: match.round,
     tier: match.tier,
     groupName: match.groupName,
-    playerA: match.playerA,
-    playerB: match.playerB,
+    playerA: withPhoto(match.playerA),
+    playerB: withPhoto(match.playerB),
     reported: match.outcome !== null,
     pendingFreeWin: match.outcome === "free_win" && match.confirmedAt === null,
     decidedByDrop: match.decidedByDrop,

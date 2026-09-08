@@ -1,17 +1,13 @@
-import {
-  createClient as createSupabaseAdmin,
-  type User,
-} from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { sql } from "drizzle-orm";
 import { profiles } from "@/db/schema";
 import { discordIdentityFromUser } from "@/features/auth/identity";
 import { db } from "@/lib/db";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getPersona, type Persona, personaToAdminPayload } from "./personas";
 
 export type DevLoginResult = { ok: true } | { ok: false; error: string };
-
-type AdminClient = ReturnType<typeof createSupabaseAdmin>;
 
 // GoTrue answers some failures with an empty body, which supabase-js surfaces
 // as an AuthError whose message is "{}" (or blank). Returned raw, that is what
@@ -35,33 +31,13 @@ function describeAuthError(
   return `${action} ist fehlgeschlagen${status}: ${raw}`;
 }
 
-function adminClient():
-  | { ok: true; client: AdminClient }
-  | { ok: false; error: string } {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !secretKey) {
-    return {
-      ok: false,
-      error:
-        "NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY sind nicht gesetzt",
-    };
-  }
-  return {
-    ok: true,
-    client: createSupabaseAdmin(url, secretKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    }),
-  };
-}
-
 /**
  * Signs the current browser session in as an existing auth user: an admin
  * magic link, verified server-side, so no email is ever sent. Shared by
  * persona login and by impersonation of a cloned production user.
  */
 export async function establishSession(email: string): Promise<DevLoginResult> {
-  const admin = adminClient();
+  const admin = supabaseAdmin();
   if (!admin.ok) {
     return admin;
   }
@@ -102,7 +78,7 @@ export async function loginAsPersona(
     return { ok: false, error: `Unbekannte Persona: ${personaId}` };
   }
 
-  const admin = adminClient();
+  const admin = supabaseAdmin();
   if (!admin.ok) {
     return admin;
   }

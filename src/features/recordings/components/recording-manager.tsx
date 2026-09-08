@@ -21,13 +21,18 @@ import {
 import { toggleAllDivisions } from "@/features/motw/motw";
 import { PlayerLink } from "@/features/player-profile/components/player-link";
 import { PlayerAvatar } from "@/features/season/components/player-avatar";
-import type { Identity } from "@/features/season/dashboard";
 import { divisionName } from "@/features/seeding/seeding";
+import { StreamPhotoMark } from "@/features/stream-photos/components/stream-photo-mark";
 import { emphasisSurface } from "@/lib/emphasis";
 import { formatGermanDay } from "@/lib/german-time";
 import { cn } from "@/lib/utils";
 import { holdMatch, releaseHold } from "../actions";
-import type { HeldMatch, RecordingMatch, RecordingWeek } from "../holds";
+import type {
+  HeldMatch,
+  RecordingMatch,
+  RecordingPlayer,
+  RecordingWeek,
+} from "../holds";
 import { StaleHoldsCard } from "./stale-holds-card";
 
 // Both row actions ("Aufnehmen" and the held row's "Aufnahme") are one fixed
@@ -557,10 +562,10 @@ function WeekPanel({ week }: { week: RecordingWeek }) {
 }
 
 function Side({
-  identity,
+  player,
   align,
 }: {
-  identity: Identity;
+  player: RecordingPlayer;
   align: "left" | "right";
 }) {
   return (
@@ -570,12 +575,15 @@ function Side({
         align === "right" && "sm:flex-row-reverse",
       )}
     >
-      <PlayerAvatar identity={identity} size="size-7" />
+      <PlayerAvatar identity={player} size="size-7" />
       <PlayerLink
-        userId={identity.userId}
-        name={identity.name}
+        userId={player.userId}
+        name={player.name}
         className="truncate font-medium text-sm"
       />
+      {/* Whether the stream has a picture of this player. The avatar next to
+          it is the hub's own; these are two different things. */}
+      <StreamPhotoMark photoUrl={player.streamPhotoUrl} name={player.name} />
     </span>
   );
 }
@@ -611,11 +619,11 @@ function PickRow({
       <span className="whitespace-nowrap font-semibold text-[11px] text-muted-foreground uppercase tracking-[0.06em]">
         {shortGroup(match.groupName)}
       </span>
-      <Side identity={match.playerA} align="left" />
+      <Side player={match.playerA} align="left" />
       <span className="hidden text-[11.5px] text-muted-foreground/70 sm:block">
         vs.
       </span>
-      <Side identity={match.playerB} align="right" />
+      <Side player={match.playerB} align="right" />
       {/* Wrapped lines align left (DESIGN.md §6): the stacked mobile grid
           gives this cell its own line, right-aligned only from sm up. */}
       <span className="flex items-center gap-2 sm:justify-end">

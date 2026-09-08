@@ -1,4 +1,5 @@
 import { Lock, Video } from "lucide-react";
+import { StreamPhotoHint } from "@/features/stream-photos/components/stream-photo-hint";
 
 // The recording strip on the match page (docs/plans/recording-holds.md): tells
 // every viewer that staff record this match for the stream and that the
@@ -10,9 +11,12 @@ import { Lock, Video } from "lucide-react";
 export function RecordingBanner({
   round,
   notPublic = false,
+  photoHint = false,
 }: {
   round: number;
   notPublic?: boolean;
+  // A participant of this match who has no stream photo yet.
+  photoHint?: boolean;
 }) {
   return (
     <div className="mb-7 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-xl border border-brand-blue/30 bg-brand-blue/[0.04] px-4 py-3 dark:border-white/25 dark:bg-white/[0.05]">
@@ -34,6 +38,7 @@ export function RecordingBanner({
           ? "Dieses Match wird für den Stream aufgenommen. Bis der Staff das Ergebnis freigibt, sehen es nur Staff und die beiden Spieler."
           : "Dieses Match wird für den Stream aufgenommen. Das Ergebnis wird veröffentlicht, sobald der Stream vorbei ist."}
       </p>
+      {photoHint ? <StreamPhotoHint /> : null}
     </div>
   );
 }

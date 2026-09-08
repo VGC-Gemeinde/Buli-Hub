@@ -50,6 +50,7 @@ import {
 } from "@/features/seeding/queries";
 import { latestWindow } from "@/features/staff/queries";
 import { db } from "@/lib/db";
+import { seedStreamPhotos } from "./stream-photo";
 import { SEED_SHEET_A, SEED_SHEET_B } from "./teamsheets";
 
 // Dev-only test-data generator: a closed registration window filled with fake
@@ -725,6 +726,17 @@ async function seedDevResults(
         heldById: staffId,
       });
     }
+  }
+
+  // Stream photos for two of the players the stream would show (one MotW
+  // player, one of the held match), so the staff marks, the profile card and
+  // the stream payload all have a picture, and their opponents show the
+  // "no photo yet" state next to them.
+  const photoFor = [motwMatch?.playerAId, currentHold?.playerAId].filter(
+    (id): id is string => typeof id === "string",
+  );
+  if (photoFor.length > 0) {
+    await seedStreamPhotos(photoFor);
   }
 
   // One open dispute (loser contests the result) and one already resolved, so

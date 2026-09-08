@@ -1,6 +1,7 @@
 "use client";
 
-import { isAllowedImageType, MAX_IMAGE_EDGE, scaleToFit } from "../attachments";
+import { isAllowedImageType } from "@/lib/image";
+import { MAX_IMAGE_EDGE, scaleToFit } from "../attachments";
 
 // Client-side downscaling, kept deliberately thin: the arithmetic lives in
 // `scaleToFit` (pure, tested), this only drives a canvas. A phone screenshot

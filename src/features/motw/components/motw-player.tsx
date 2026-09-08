@@ -1,6 +1,7 @@
 import { CircleHelp, Video, VideoOff } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlayerLink } from "@/features/player-profile/components/player-link";
+import { StreamPhotoMark } from "@/features/stream-photos/components/stream-photo-mark";
 import { cn } from "@/lib/utils";
 import type { MotwPlayer } from "../motw";
 
@@ -113,6 +114,9 @@ function PlayerFormLine({
         {player.wins}–{player.losses}
       </span>
       <CaptureCardMark player={player} size={size} />
+      {/* Two different questions, side by side: can this match be recorded,
+          and does the stream have a picture of this player. */}
+      <StreamPhotoMark photoUrl={player.streamPhotoUrl} name={player.name} />
     </span>
   );
 }

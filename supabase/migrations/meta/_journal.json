@@ -141,6 +141,20 @@
       "when": 1788887399241,
       "tag": "20260908170959_recording_holds_fk_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788892449894,
+      "tag": "20260908183409_stream_photos",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788892451679,
+      "tag": "20260908183411_stream_photos_bucket",
+      "breakpoints": true
     }
   ]
 }

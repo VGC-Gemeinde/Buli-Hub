@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { streamPhotoUrl } from "@/features/stream-photos/photo";
 import {
   type MatchInput,
   toStreamMatch,
@@ -16,8 +17,12 @@ const base: MatchInput = {
   position: 1,
   playerAId: alice,
   playerBId: bob,
-  playerA: { displayName: "Alice", username: "alice", avatarUrl: "https://a" },
-  playerB: { displayName: null, username: "bobby", avatarUrl: null },
+  playerA: {
+    displayName: "Alice",
+    username: "alice",
+    streamPhotoPath: "alice/photo.webp",
+  },
+  playerB: { displayName: null, username: "bobby", streamPhotoPath: null },
   platform: "showdown",
   reportedAt: new Date("2026-07-03T18:00:00Z"),
   motw: true,
@@ -41,8 +46,19 @@ describe("toStreamMatchDetail", () => {
       round: 3,
       division: { tier: 1, name: "Division 1" },
       group: { name: "Division 1b", shortName: "1b" },
-      playerA: { id: alice, name: "Alice", avatarUrl: "https://a" },
-      playerB: { id: bob, name: "bobby", avatarUrl: null },
+      playerA: {
+        id: alice,
+        name: "Alice",
+        photoUrl: streamPhotoUrl("alice/photo.webp"),
+        // The Discord avatar is no longer part of the stream payload.
+        avatarUrl: null,
+      },
+      playerB: {
+        id: bob,
+        name: "bobby",
+        photoUrl: null,
+        avatarUrl: null,
+      },
       games: ["a", "b", "a"],
       platform: "showdown",
       motw: true,
@@ -79,7 +95,7 @@ describe("toStreamMatchDetail", () => {
 });
 
 describe("toStreamMatch", () => {
-  it("drops avatars and sheets", () => {
+  it("drops photos and sheets", () => {
     const match = toStreamMatch(base);
     expect(match).not.toBeNull();
     expect(match).not.toHaveProperty("sheets");

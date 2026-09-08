@@ -1,9 +1,9 @@
-import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { STREAM_PHOTO_BUCKET } from "./photo";
 
-// The bucket side of the stream photos. Writes go through the service key,
-// never from a browser; reads are plain public URLs (`streamPhotoUrl`).
+// The bucket side of the stream photos. Server only: it holds the service
+// key, so nothing here may ever be imported into a client component. Reads
+// need none of this, they are plain public URLs (`streamPhotoUrl`).
 
 export type StorageResult = { ok: true } | { ok: false; error: string };
 

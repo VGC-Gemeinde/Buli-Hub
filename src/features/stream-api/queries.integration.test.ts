@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   divisions,
   matchdays,
@@ -28,7 +28,13 @@ let halfReported: string; // erin vs frank, normal result but one sheet only
 let open: string; // alice vs carol, no result
 let bye: string; // dave
 
+// The public URL of a stream photo is built from this; CI sets it for the
+// build step only, so the assertion below would otherwise depend on the
+// ambient environment.
+const SUPABASE_URL = "https://sb.test";
+
 beforeAll(async () => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
   for (const id of [alice, bob, carol, dave, erin, frank]) {
     await db.execute(sql`insert into auth.users (id) values (${id})`);
   }
@@ -151,6 +157,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  vi.unstubAllEnvs();
   await db.execute(
     sql`delete from registration_windows where id = ${windowId}`,
   );
@@ -189,7 +196,9 @@ describe("getStreamMatch", () => {
       a: "Garchomp @ Life Orb",
       b: "Whimsicott @ Occa Berry",
     });
-    expect(match?.playerA.photoUrl).toContain(`${alice}/photo.webp`);
+    expect(match?.playerA.photoUrl).toBe(
+      `${SUPABASE_URL}/storage/v1/object/public/stream-photos/${alice}/photo.webp`,
+    );
     expect(match?.playerB.photoUrl).toBeNull();
     expect(match?.playerA.avatarUrl).toBeNull();
     expect(match?.playerB.avatarUrl).toBeNull();

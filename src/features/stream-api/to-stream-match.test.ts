@@ -1,5 +1,4 @@
-import { describe, expect, it } from "vitest";
-import { streamPhotoUrl } from "@/features/stream-photos/photo";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   type MatchInput,
   toStreamMatch,
@@ -38,6 +37,17 @@ const base: MatchInput = {
   ],
 };
 
+// Without a base URL every photo maps to null, and the mapping below would
+// assert nothing. CI sets the variable for the build only, so the test sets
+// its own.
+beforeAll(() => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.test");
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("toStreamMatchDetail", () => {
   it("maps names, groups, games in order and sheets by side", () => {
     const match = toStreamMatchDetail(base);
@@ -49,7 +59,8 @@ describe("toStreamMatchDetail", () => {
       playerA: {
         id: alice,
         name: "Alice",
-        photoUrl: streamPhotoUrl("alice/photo.webp"),
+        photoUrl:
+          "https://sb.test/storage/v1/object/public/stream-photos/alice/photo.webp",
         // The Discord avatar is no longer part of the stream payload.
         avatarUrl: null,
       },

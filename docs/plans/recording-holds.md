@@ -123,6 +123,9 @@ copy talks about the "Stream" ("Ergebnis folgt nach dem Stream").
 - **Discord**: `shouldPostResult` gains `held: boolean` → false while held.
   The release action calls `syncResultPost`. The post is a normal result
   post without a suffix.
+- **Stream photo**: the two players of a held match are offered the upload in
+  `/profil` and get one quiet line in the banner
+  (`docs/plans/stream-photos.md`).
 - **Stream API**: `StreamMatch` gains `recording: boolean` next to `motw`,
   read from a left join on `recording_holds`. The stream backend can mark
   its own recordings the way it marks the MotW.

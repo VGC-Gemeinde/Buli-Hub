@@ -58,6 +58,16 @@ export const profiles = pgTable("profiles", {
   // Live capability, editable by the owner (not a per-season snapshot — see
   // docs/decisions/registration-vs-profile-data.md).
   hasCaptureCard: boolean("has_capture_card").notNull().default(false),
+  // The photo the player picked for the stream overlay: the object path in
+  // the `stream-photos` bucket, or null. Deliberately separate from
+  // avatarUrl, which stays the Discord avatar the hub itself shows: the two
+  // are different pictures for different places
+  // (docs/plans/stream-photos.md). A new object per upload, so the URL
+  // changes and no cache keeps serving the old picture.
+  streamPhotoPath: text("stream_photo_path"),
+  streamPhotoUpdatedAt: timestamp("stream_photo_updated_at", {
+    withTimezone: true,
+  }),
   // Set when the owner saves their settings (any change). Drives the
   // registration profile-hint; distinct from updatedAt, which the identity
   // sync also bumps.

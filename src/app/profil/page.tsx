@@ -5,6 +5,13 @@ import { SettingsForm } from "@/features/profile/components/settings-form";
 import { getProfile } from "@/features/profile/queries";
 import { currentUser } from "@/features/roles/guard";
 import { roleLabel } from "@/features/roles/roles";
+import { latestWindow } from "@/features/staff/queries";
+import { StreamPhotoCard } from "@/features/stream-photos/components/stream-photo-card";
+import {
+  showStreamPhotoCard,
+  streamPhotoUrl,
+} from "@/features/stream-photos/photo";
+import { streamRelevanceOf } from "@/features/stream-photos/queries";
 
 export default async function ProfilPage() {
   const current = await currentUser();
@@ -13,6 +20,19 @@ export default async function ProfilPage() {
   }
 
   const profile = await getProfile(current.userId);
+
+  // The stream photo is only asked of the players the stream is about to
+  // show: the Match of the Week and the matches staff record. Anyone who
+  // already has one keeps the card, so they can swap or delete it later.
+  const window = await latestWindow();
+  const relevance = window
+    ? await streamRelevanceOf(current.userId, window.id)
+    : { isMotwPlayer: false, isRecordedPlayer: false };
+  const photoUrl = streamPhotoUrl(profile?.streamPhotoPath ?? null);
+  const showPhotoCard = showStreamPhotoCard({
+    ...relevance,
+    hasPhoto: photoUrl !== null,
+  });
 
   const initial = {
     twitterHandle: profile?.twitterHandle ?? "",
@@ -34,6 +54,11 @@ export default async function ProfilPage() {
         <div className="mt-11">
           <SettingsForm initial={initial} />
         </div>
+        {showPhotoCard ? (
+          <div className="mt-11">
+            <StreamPhotoCard photoUrl={photoUrl} />
+          </div>
+        ) : null}
       </main>
     </div>
   );

@@ -34,6 +34,8 @@ import {
 } from "@/features/spoilers/spoilers";
 import { latestWindow, windowSeasonPhase } from "@/features/staff/queries";
 import { seasonName } from "@/features/staff/registration-window";
+import { streamPhotoUrl } from "@/features/stream-photos/photo";
+import { streamPhotoPathOf } from "@/features/stream-photos/queries";
 
 // The public player profile: the identity block known from the edit page,
 // the current division + place, and the spoiler-protected Spielplan
@@ -191,6 +193,7 @@ export default async function PlayerProfilePage({
             }}
             dropped={dropState.droppedAt !== null}
             dropReason={dropState.dropReason}
+            streamPhotoUrl={streamPhotoUrl(await streamPhotoPathOf(userId))}
           />
         ) : null}
       </main>

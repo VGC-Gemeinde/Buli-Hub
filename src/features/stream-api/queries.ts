@@ -43,10 +43,10 @@ async function matchInputs(
       // username set.
       aName: pa.displayName,
       aUser: pa.username,
-      aAvatar: pa.avatarUrl,
+      aPhoto: pa.streamPhotoPath,
       bName: pb.displayName,
       bUser: pb.username,
-      bAvatar: pb.avatarUrl,
+      bPhoto: pb.streamPhotoPath,
       platform: matchResults.platform,
       reportedAt: matchResults.reportedAt,
       motwId: motwSelections.id,
@@ -113,12 +113,12 @@ async function matchInputs(
         playerA: {
           displayName: row.aName,
           username: row.aUser,
-          avatarUrl: row.aAvatar,
+          streamPhotoPath: row.aPhoto,
         },
         playerB: {
           displayName: row.bName,
           username: row.bUser,
-          avatarUrl: row.bAvatar,
+          streamPhotoPath: row.bPhoto,
         },
         platform: row.platform,
         reportedAt: row.reportedAt,

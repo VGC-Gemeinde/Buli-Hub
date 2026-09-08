@@ -4,6 +4,7 @@ import {
   subDivisionName,
   subDivisionShortName,
 } from "@/features/seeding/seeding";
+import { streamPhotoUrl } from "@/features/stream-photos/photo";
 import { playerName } from "@/lib/player-name";
 
 // The stream API payload for one match (docs/plans/stream-api.md): what
@@ -31,16 +32,32 @@ export type StreamMatch = {
 };
 
 export type StreamMatchDetail = Omit<StreamMatch, "playerA" | "playerB"> & {
-  playerA: StreamPlayer & { avatarUrl: string | null };
-  playerB: StreamPlayer & { avatarUrl: string | null };
+  playerA: StreamPlayer & StreamPlayerImages;
+  playerB: StreamPlayer & StreamPlayerImages;
   /** Open team sheets as Showdown text, one per side. */
   sheets: { a: string; b: string };
+};
+
+/**
+ * What the stream shows next to a player. `photoUrl` is the picture the
+ * player uploaded for exactly this purpose (docs/plans/stream-photos.md);
+ * null means they have none and the overlay draws its placeholder.
+ *
+ * `avatarUrl` is the Discord avatar the hub shows on its own pages. It is
+ * **never** delivered here any more and is always null: the two are separate
+ * pictures for separate places. The key stays until gemeinde-streams reads
+ * `photoUrl`, because its schema still requires it.
+ */
+export type StreamPlayerImages = {
+  photoUrl: string | null;
+  /** @deprecated always null, read `photoUrl` instead */
+  avatarUrl: null;
 };
 
 export type ProfileRow = {
   displayName: string | null;
   username: string | null;
-  avatarUrl: string | null;
+  streamPhotoPath: string | null;
 };
 
 export type MatchInput = {
@@ -99,12 +116,14 @@ export function toStreamMatchDetail(
     playerA: {
       id: input.playerAId,
       name: playerName(input.playerA?.displayName, input.playerA?.username),
-      avatarUrl: input.playerA?.avatarUrl ?? null,
+      photoUrl: streamPhotoUrl(input.playerA?.streamPhotoPath ?? null),
+      avatarUrl: null,
     },
     playerB: {
       id: input.playerBId,
       name: playerName(input.playerB?.displayName, input.playerB?.username),
-      avatarUrl: input.playerB?.avatarUrl ?? null,
+      photoUrl: streamPhotoUrl(input.playerB?.streamPhotoPath ?? null),
+      avatarUrl: null,
     },
     games,
     platform: input.platform,

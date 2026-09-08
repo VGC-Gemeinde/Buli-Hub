@@ -164,12 +164,15 @@ describe("saveResult + getMatchResult", () => {
     expect(stored?.winnerId).toBe(alice);
     expect(stored?.games.map((g) => g.winnerId)).toEqual([alice, bob, alice]);
     expect(stored?.confirmedAt).toBeNull();
-    expect(
+    // By player, not by row order: the query has no ORDER BY, and every
+    // consumer looks a sheet up by player id, so the order carries no
+    // meaning. Asserting it made this test fail at random.
+    const sources = new Map(
       stored?.sheets.map((sheet) => [sheet.playerId, sheet.source]),
-    ).toEqual([
-      [alice, "pokepaste"],
-      [bob, "import"],
-    ]);
+    );
+    expect(sources.get(alice)).toBe("pokepaste");
+    expect(sources.get(bob)).toBe("import");
+    expect(sources.size).toBe(2);
   });
 
   it("keeps the paste id when a sheet is corrected", async () => {

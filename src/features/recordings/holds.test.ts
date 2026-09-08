@@ -72,7 +72,12 @@ describe("staleHoldsSummary", () => {
   });
 });
 
-const identity = (id: string) => ({ userId: id, name: id, avatarUrl: null });
+const identity = (id: string) => ({
+  userId: id,
+  name: id,
+  avatarUrl: null,
+  streamPhotoUrl: null,
+});
 const rm = (
   matchId: string,
   round: number,

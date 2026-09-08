@@ -1,5 +1,6 @@
 import { Lock, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StreamPhotoHint } from "@/features/stream-photos/components/stream-photo-hint";
 import { MotwBadge } from "./motw-badge";
 
 // The Match-of-the-Week strip on the match page (design/MATCH-OF-THE-WEEK.md
@@ -12,10 +13,14 @@ export function MotwMatchBanner({
   round,
   youtubeUrl,
   notPublic = false,
+  photoHint = false,
 }: {
   round: number;
   youtubeUrl: string | null;
   notPublic?: boolean;
+  // A participant of this match who has no stream photo yet. One line, no
+  // nagging: whether they end up on stream is not decided here.
+  photoHint?: boolean;
 }) {
   return (
     <div className="mb-7 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-xl border border-brand-orange/40 bg-brand-orange/5 px-4 py-3">
@@ -47,6 +52,7 @@ export function MotwMatchBanner({
           Bis dahin sehen nur Staff und die beiden Spieler das Ergebnis.
         </p>
       ) : null}
+      {photoHint ? <StreamPhotoHint /> : null}
     </div>
   );
 }

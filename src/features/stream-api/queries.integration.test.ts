@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   divisions,
   matchdays,
@@ -28,12 +28,25 @@ let halfReported: string; // erin vs frank, normal result but one sheet only
 let open: string; // alice vs carol, no result
 let bye: string; // dave
 
+// The public URL of a stream photo is built from this; CI sets it for the
+// build step only, so the assertion below would otherwise depend on the
+// ambient environment.
+const SUPABASE_URL = "https://sb.test";
+
 beforeAll(async () => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
   for (const id of [alice, bob, carol, dave, erin, frank]) {
     await db.execute(sql`insert into auth.users (id) values (${id})`);
   }
   await db.insert(profiles).values([
-    { userId: alice, displayName: "Alice", avatarUrl: "https://cdn/alice" },
+    {
+      userId: alice,
+      displayName: "Alice",
+      // The Discord avatar stays on the profile and out of the payload; the
+      // stream photo is what the overlay gets.
+      avatarUrl: "https://cdn/alice",
+      streamPhotoPath: `${alice}/photo.webp`,
+    },
     { userId: bob, username: "bobby" },
     { userId: carol, displayName: "Carol" },
     { userId: dave, displayName: "Dave" },
@@ -144,6 +157,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  vi.unstubAllEnvs();
   await db.execute(
     sql`delete from registration_windows where id = ${windowId}`,
   );
@@ -176,13 +190,17 @@ describe("listStreamMatches", () => {
 });
 
 describe("getStreamMatch", () => {
-  it("carries sheets and avatars", async () => {
+  it("carries sheets and the stream photo, never the Discord avatar", async () => {
     const match = await getStreamMatch(windowId, played);
     expect(match?.sheets).toEqual({
       a: "Garchomp @ Life Orb",
       b: "Whimsicott @ Occa Berry",
     });
-    expect(match?.playerA.avatarUrl).toBe("https://cdn/alice");
+    expect(match?.playerA.photoUrl).toBe(
+      `${SUPABASE_URL}/storage/v1/object/public/stream-photos/${alice}/photo.webp`,
+    );
+    expect(match?.playerB.photoUrl).toBeNull();
+    expect(match?.playerA.avatarUrl).toBeNull();
     expect(match?.playerB.avatarUrl).toBeNull();
   });
 

@@ -38,6 +38,8 @@ Rudimentary-but-intentional design; hand-off + design pass come later.
   round is the current Spieltag: the pairing with division/group context, a
   "Watch on YouTube" button once the link exists, and the result behind
   click-to-reveal once reported. No MotW for the current round → no block.
+- **Stream photo**: the two featured players are offered the picture the
+  stream shows next to their name (`docs/plans/stream-photos.md`).
 - **Result embargo until the VOD** (`docs/plans/motw-result-embargo.md`):
   while the pick has no YouTube link, the result is withheld from everyone
   but staff and the two participants — it never reaches their browser. The

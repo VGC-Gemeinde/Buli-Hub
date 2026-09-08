@@ -215,6 +215,7 @@ describe("sortCandidates / buildMotwWeeks", () => {
     userId: name,
     name,
     avatarUrl: null,
+    streamPhotoUrl: null,
     rank,
     wins: 0,
     losses: 0,

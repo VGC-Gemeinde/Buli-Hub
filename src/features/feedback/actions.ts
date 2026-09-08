@@ -6,11 +6,8 @@ import { matchdaysForWindow } from "@/features/season/queries";
 import { latestWindow } from "@/features/staff/queries";
 import { createForumThread, type DiscordUpload } from "@/lib/discord";
 import { germanToday } from "@/lib/german-time";
-import {
-  attachmentFileName,
-  sniffImageType,
-  validateAttachments,
-} from "./attachments";
+import { sniffImageType } from "@/lib/image";
+import { attachmentFileName, validateAttachments } from "./attachments";
 import {
   canSubmit,
   feedbackInputSchema,

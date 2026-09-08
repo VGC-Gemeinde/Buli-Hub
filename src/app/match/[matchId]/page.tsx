@@ -32,6 +32,7 @@ import {
 } from "@/features/spoilers/spoilers";
 import { latestWindow } from "@/features/staff/queries";
 import { seasonName } from "@/features/staff/registration-window";
+import { streamPhotoPathOf } from "@/features/stream-photos/queries";
 import { parseTeamsheet } from "@/features/teamsheets/parse";
 import { monIcons } from "@/features/teamsheets/view";
 import { formatGermanDateTime } from "@/lib/german-time";
@@ -95,6 +96,13 @@ export default async function MatchReportPage({
     motwByMatchId(matchId),
     isHeld(matchId),
   ]);
+  // The stream photo line in the banner: only for the two players of a match
+  // that is featured or recorded, and only while they have no picture yet
+  // (docs/plans/stream-photos.md).
+  const photoHint =
+    isParticipant && current !== null && (motw !== null || held)
+      ? (await streamPhotoPathOf(current.userId)) === null
+      : false;
   const embargo = resultEmbargo({ motw, held, isStaff, isParticipant });
   // The global spoiler preference (cookie): with protection on, neutral
   // viewers get a cover instead of the summary; the MotW ignores the switch.
@@ -206,12 +214,14 @@ export default async function MatchReportPage({
             round={motw.round}
             youtubeUrl={motw.youtubeUrl}
             notPublic={embargo?.access === "preview" && result !== null}
+            photoHint={photoHint}
           />
         ) : held ? (
           // One banner per match: the MotW's covers a held featured match.
           <RecordingBanner
             round={match.round}
             notPublic={embargo?.access === "preview" && result !== null}
+            photoHint={photoHint}
           />
         ) : null}
         {isDropDecided ? (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { FilterChip } from "@/components/filter-chip";
 import { Tick } from "@/components/tick";
 import { Button } from "@/components/ui/button";
 import { divisionName } from "@/features/seeding/seeding";
@@ -442,37 +443,6 @@ function Picker({
         </div>
       )}
     </div>
-  );
-}
-
-function FilterChip({
-  active,
-  onClick,
-  title,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      title={title}
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3 py-1 text-[12.5px] transition-colors",
-        // Orange is the "active" surface (DESIGN.md §8.1/§8.2); white text and
-        // semibold, since a 12.5px label on solid orange needs the weight.
-        active
-          ? "border-brand-orange bg-brand-orange font-semibold text-white"
-          : "font-medium text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 

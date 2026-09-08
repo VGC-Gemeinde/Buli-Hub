@@ -25,6 +25,9 @@ import { sweepGuildMemberships } from "@/features/membership/sweep";
 import { MotwTodoCard } from "@/features/motw/components/motw-todo-card";
 import { motwTodo } from "@/features/motw/motw";
 import { motwForWindow } from "@/features/motw/queries";
+import { StaleHoldsCard } from "@/features/recordings/components/stale-holds-card";
+import { staleHolds, staleHoldsSummary } from "@/features/recordings/holds";
+import { holdsForWindow } from "@/features/recordings/queries";
 import { listRegistrations } from "@/features/registration/queries";
 import { SaisonDashboard } from "@/features/reporting/components/saison-dashboard";
 import {
@@ -126,6 +129,14 @@ function SeasonStrip({
           size="sm"
           className="h-8 rounded-lg px-3.5 font-medium text-[13.5px]"
         >
+          <Link href="/staff/aufnahmen">Aufnahmen</Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="h-8 rounded-lg px-3.5 font-medium text-[13.5px]"
+        >
           <Link href="/staff/seeding">Divisionen</Link>
         </Button>
       </div>
@@ -186,6 +197,7 @@ export default async function StaffPage() {
       matchdays,
       resolvedDisputes,
       motwSelections,
+      holds,
       drops,
       dropCandidates,
     ] = await Promise.all([
@@ -193,6 +205,7 @@ export default async function StaffPage() {
       matchdaysForWindow(window.id),
       windowResolvedDisputes(window.id),
       motwForWindow(window.id),
+      holdsForWindow(window.id),
       listDrops(window.id),
       listDropCandidates(window.id),
     ]);
@@ -207,6 +220,18 @@ export default async function StaffPage() {
       totalRounds: matchdays.length,
       selectedRounds: new Set(motwSelections.map((s) => s.round)),
     });
+    // Recording holds whose Spieltag is over: a forgotten release is a
+    // result the community never sees (docs/plans/recording-holds.md).
+    const outcomeById = new Map(overview.map((m) => [m.matchId, m.outcome]));
+    const staleRecordings = staleHoldsSummary(
+      staleHolds(
+        holds.map((hold) => ({
+          ...hold,
+          reported: (outcomeById.get(hold.matchId) ?? null) !== null,
+        })),
+        week?.round ?? null,
+      ),
+    );
 
     // schedule_hidden: the publish todo, summarizing what goes live. The
     // overview excludes byes, so its length is the real match count; a
@@ -255,6 +280,9 @@ export default async function StaffPage() {
             />
             {publishFacts ? <PublishScheduleCard facts={publishFacts} /> : null}
             {discordView ? <DiscordSeasonCard view={discordView} /> : null}
+            {staleRecordings ? (
+              <StaleHoldsCard summary={staleRecordings} />
+            ) : null}
             {todo ? <MotwTodoCard todo={todo} /> : null}
             {nonMemberCount > 0 ? (
               <MembershipWarningCard

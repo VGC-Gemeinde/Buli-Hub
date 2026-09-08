@@ -1,5 +1,6 @@
 import { droppedIdsForSubDivision } from "@/features/drops/queries";
 import { motwByMatchId } from "@/features/motw/queries";
+import { isHeld } from "@/features/recordings/queries";
 import {
   getMatchForReport,
   getMatchResult,
@@ -107,7 +108,8 @@ async function dropMessage(kind: PostKind, matchId: string): Promise<void> {
 }
 
 // Converges the result post of a match: posted while the hub shows a public
-// result (for the Match of the Week: once its VOD is live), deleted otherwise.
+// result (for the Match of the Week: once its VOD is live; for a match held
+// for a recording: once staff release it), deleted otherwise.
 export async function syncResultPost(matchId: string): Promise<void> {
   try {
     const channels = resultChannels();
@@ -118,9 +120,10 @@ export async function syncResultPost(matchId: string): Promise<void> {
     if (!match || !match.playerB) {
       return;
     }
-    const [result, motw, droppedIds] = await Promise.all([
+    const [result, motw, held, droppedIds] = await Promise.all([
       getMatchResult(matchId),
       motwByMatchId(matchId),
+      isHeld(matchId),
       droppedIdsForSubDivision(match.subDivisionId),
     ]);
 
@@ -130,6 +133,7 @@ export async function syncResultPost(matchId: string): Promise<void> {
     if (
       !shouldPostResult({
         motw,
+        held,
         hasDroppedParticipant,
         result,
       })

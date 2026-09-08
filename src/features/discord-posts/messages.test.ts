@@ -185,7 +185,7 @@ Zum Match: <https://hub.example/match/m1>`,
 
 describe("shouldPostResult", () => {
   const confirmed = { outcome: "normal" as const, confirmedAt: null };
-  const base = { motw: null, hasDroppedParticipant: false };
+  const base = { motw: null, held: false, hasDroppedParticipant: false };
 
   it("posts a public normal result", () => {
     expect(shouldPostResult({ ...base, result: confirmed })).toBe(true);
@@ -233,6 +233,20 @@ describe("shouldPostResult", () => {
         ...base,
         motw: { youtubeUrl: "https://youtu.be/x" },
         result: { outcome: "free_win", confirmedAt: null },
+      }),
+    ).toBe(false);
+  });
+
+  it("holds a match marked for a recording until staff release it", () => {
+    expect(shouldPostResult({ ...base, held: true, result: confirmed })).toBe(
+      false,
+    );
+    expect(
+      shouldPostResult({
+        ...base,
+        held: true,
+        motw: { youtubeUrl: "https://youtu.be/x" },
+        result: confirmed,
       }),
     ).toBe(false);
   });

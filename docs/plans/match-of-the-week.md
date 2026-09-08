@@ -97,8 +97,9 @@ and round.
 - `findMotw(divisions, selection)` — locate the featured `PublicMatch` plus
   its group name inside the already-built overview divisions (no extra
   identity queries) for the prominent block.
-- `motwEmbargo` / `withholdScore` — the result embargo before the VOD
-  (`docs/plans/motw-result-embargo.md`).
+- The result embargo before the VOD lives in the shared
+  `src/features/spoilers/embargo.ts` (`resultEmbargo` / `withholdScore`,
+  `docs/plans/motw-result-embargo.md`); the recording holds reuse it.
 
 **Queries (`queries.ts`, integration-tested):**
 - `motwForWindow(windowId)` — all selections `{ round, matchId, youtubeUrl }`;
@@ -122,7 +123,7 @@ and round.
 
 - **Public overview** (`src/features/public-league/`): `publicLeagueOverview`
   additionally fetches `motwForWindow` and takes the viewer; `PublicMatch`
-  gains `isMotw` and `motwEmbargo` (scores stay filled for the block's
+  gains `isMotw` and `embargo` (scores stay filled for the block's
   reveal unless the result is withheld from this viewer); `PublicOverview`
   gains the current round's block data (or null). `<MotwBlock>` renders
   above the division switcher; `<MatchRow>` renders the orange MotW cover

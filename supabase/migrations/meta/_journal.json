@@ -127,6 +127,20 @@
       "when": 1788649712105,
       "tag": "20260905230832_discord_season_fk_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788887387981,
+      "tag": "20260908170947_recording_holds",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788887399241,
+      "tag": "20260908170959_recording_holds_fk_rls",
+      "breakpoints": true
     }
   ]
 }

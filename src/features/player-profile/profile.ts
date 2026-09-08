@@ -1,13 +1,14 @@
-import { type MotwEmbargo, motwEmbargo } from "@/features/motw/motw";
 import { scoreFor } from "@/features/reporting/match-state";
 import type { MatchResultLite } from "@/features/reporting/queries";
 import type { Identity, PlayerMatch } from "@/features/season/dashboard";
+import { type ResultEmbargo, resultEmbargo } from "@/features/spoilers/embargo";
 
 // Pure assembly of the profile page's Spielplan: the player's matches merged
 // with (drop-aware, effective) results, MotW flags, and the *viewer's*
 // involvement — own results are never spoilers. Scores are given from the
-// profile owner's perspective. A Match of the Week under embargo (no VOD yet)
-// is withheld from viewers who are neither staff nor a participant.
+// profile owner's perspective. A result under embargo (MotW without VOD, a
+// recording hold) is withheld from viewers who are neither staff nor a
+// participant.
 
 export type ProfileScheduleRow = {
   matchId: string;
@@ -22,7 +23,7 @@ export type ProfileScheduleRow = {
   // or the opponent viewing) — exempt from spoiler covering.
   isMine: boolean;
   isMotw: boolean;
-  motwEmbargo: MotwEmbargo;
+  embargo: ResultEmbargo;
 };
 
 export function profileScheduleRows(input: {
@@ -32,6 +33,7 @@ export function profileScheduleRows(input: {
   matches: readonly PlayerMatch[];
   resultByMatchId: ReadonlyMap<string, MatchResultLite>;
   motwSelections: readonly { matchId: string; youtubeUrl: string | null }[];
+  heldMatchIds: ReadonlySet<string>;
 }): ProfileScheduleRow[] {
   const motwByMatchId = new Map(
     input.motwSelections.map((s) => [s.matchId, s] as const),
@@ -48,8 +50,9 @@ export function profileScheduleRows(input: {
       (input.viewerId === input.playerId ||
         input.viewerId === match.opponent?.userId);
     const motw = motwByMatchId.get(match.matchId) ?? null;
-    const embargo = motwEmbargo({
-      selection: motw,
+    const embargo = resultEmbargo({
+      motw,
+      held: input.heldMatchIds.has(match.matchId),
       isStaff: input.viewerIsStaff,
       isParticipant: isMine,
     });
@@ -64,9 +67,9 @@ export function profileScheduleRows(input: {
       scoreOpponent: score?.opponent ?? null,
       isMine,
       isMotw: motw !== null,
-      motwEmbargo: embargo,
+      embargo,
     };
-    if (embargo !== "withheld") {
+    if (embargo?.access !== "withheld") {
       return row;
     }
     // The profile row keeps scores from the owner's perspective, so the

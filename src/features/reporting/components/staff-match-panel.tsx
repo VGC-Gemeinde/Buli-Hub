@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { releaseHold } from "@/features/recordings/actions";
 import type { Identity } from "@/features/season/dashboard";
 import type { MatchOutcome } from "../report";
 import type { NormalEditorInitial } from "../result-draft";
@@ -33,6 +34,7 @@ export function StaffMatchPanel({
   playerA,
   playerB,
   hasResult,
+  held = false,
   outcome,
   winnerName,
   isPendingFreeWin,
@@ -48,6 +50,9 @@ export function StaffMatchPanel({
   playerA: Identity;
   playerB: Identity;
   hasResult: boolean;
+  // Held for a recording (docs/plans/recording-holds.md): the release lives
+  // here too, so staff on the match need not detour via /staff/aufnahmen.
+  held?: boolean;
   // The counted result, for the dispute decision's context.
   outcome?: MatchOutcome | null;
   winnerName?: string | null;
@@ -123,6 +128,29 @@ export function StaffMatchPanel({
         </span>
       </div>
       <p className="mt-1.5 text-[13.5px] text-muted-foreground">{context}</p>
+
+      {held ? (
+        <ActionRow
+          title="Für Aufnahme zurückgehalten"
+          consequence={
+            hasResult
+              ? "Freigeben veröffentlicht das Ergebnis und postet es im Ergebniskanal."
+              : "Das Ergebnis bleibt nach der Meldung zurückgehalten, bis es freigegeben wird."
+          }
+        >
+          <ConfirmDialog
+            trigger="Freigeben"
+            title="Ergebnis freigeben?"
+            body={
+              hasResult
+                ? "Das Ergebnis wird sofort öffentlich und im Ergebniskanal gepostet. Das lässt sich nicht rückgängig machen."
+                : "Die Markierung wird entfernt. Sobald das Match gemeldet ist, wird das Ergebnis wie gewohnt veröffentlicht."
+            }
+            confirmLabel="Freigeben"
+            onConfirm={() => releaseHold({ matchId })}
+          />
+        </ActionRow>
+      ) : null}
 
       {/* While a dispute is open the decision is the only way in: it contains
           every correction path, so no second route can leave the result and the

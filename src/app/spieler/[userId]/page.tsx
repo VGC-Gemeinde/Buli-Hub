@@ -13,6 +13,7 @@ import { ProfileSpielplan } from "@/features/player-profile/components/profile-s
 import { profileScheduleRows } from "@/features/player-profile/profile";
 import { profileIdentity } from "@/features/player-profile/queries";
 import { ProfileHeader } from "@/features/profile/components/profile-header";
+import { holdsForWindow } from "@/features/recordings/queries";
 import { ProfileCancelPanel } from "@/features/registration/components/profile-cancel-panel";
 import { getRegistration } from "@/features/registration/queries";
 import { groupResults, subDivisionResults } from "@/features/reporting/queries";
@@ -80,6 +81,7 @@ export default async function PlayerProfilePage({
       resultByMatchId,
       matchdays,
       motwSelections,
+      holds,
       droppedIds,
     ] = await Promise.all([
       groupRoster(placement.subDivisionId),
@@ -88,6 +90,7 @@ export default async function PlayerProfilePage({
       subDivisionResults(placement.subDivisionId),
       matchdaysForWindow(window.id),
       motwForWindow(window.id),
+      holdsForWindow(window.id),
       droppedIdsForWindow(window.id),
     ]);
     const rank =
@@ -105,6 +108,7 @@ export default async function PlayerProfilePage({
       }),
       resultByMatchId,
       motwSelections,
+      heldMatchIds: new Set(holds.map((h) => h.matchId)),
     });
     const groupName = subDivisionName(placement.tier, placement.position);
     season = {

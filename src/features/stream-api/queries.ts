@@ -7,6 +7,7 @@ import {
   matchResults,
   motwSelections,
   profiles,
+  recordingHolds,
   subDivisions,
   teamSheets,
 } from "@/db/schema";
@@ -49,6 +50,7 @@ async function matchInputs(
       platform: matchResults.platform,
       reportedAt: matchResults.reportedAt,
       motwId: motwSelections.id,
+      heldId: recordingHolds.matchId,
     })
     .from(matches)
     .innerJoin(subDivisions, eq(subDivisions.id, matches.subDivisionId))
@@ -57,6 +59,7 @@ async function matchInputs(
     .leftJoin(pa, eq(pa.userId, matches.playerAId))
     .leftJoin(pb, eq(pb.userId, matches.playerBId))
     .leftJoin(motwSelections, eq(motwSelections.matchId, matches.id))
+    .leftJoin(recordingHolds, eq(recordingHolds.matchId, matches.id))
     .where(
       and(
         eq(divisions.windowId, windowId),
@@ -120,6 +123,7 @@ async function matchInputs(
         platform: row.platform,
         reportedAt: row.reportedAt,
         motw: row.motwId !== null,
+        recording: row.heldId !== null,
         games: games
           .filter((g) => g.matchId === row.id)
           .map(({ gameNumber, winnerId }) => ({ gameNumber, winnerId })),

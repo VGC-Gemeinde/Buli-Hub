@@ -33,6 +33,7 @@ describe("profileScheduleRows", () => {
       matches: [match("m1")],
       resultByMatchId: new Map([["m1", normalResult("m1")]]),
       motwSelections: [],
+      heldMatchIds: new Set(),
     });
     expect(row).toMatchObject({
       reported: true,
@@ -56,6 +57,7 @@ describe("profileScheduleRows", () => {
       matches: [match("m1"), match("m2", { round: 2 })],
       resultByMatchId: new Map([["m2", pending]]),
       motwSelections: [],
+      heldMatchIds: new Set(),
     });
     expect(rows[0].reported).toBe(false);
     expect(rows[1].reported).toBe(false);
@@ -70,6 +72,7 @@ describe("profileScheduleRows", () => {
       matches: [match("m1")],
       resultByMatchId: new Map(),
       motwSelections: [],
+      heldMatchIds: new Set(),
     });
     expect(asOwner[0].isMine).toBe(true);
     const asOpponent = profileScheduleRows({
@@ -79,6 +82,7 @@ describe("profileScheduleRows", () => {
       matches: [match("m1")],
       resultByMatchId: new Map(),
       motwSelections: [],
+      heldMatchIds: new Set(),
     });
     expect(asOpponent[0].isMine).toBe(true);
     const asNeutral = profileScheduleRows({
@@ -88,6 +92,7 @@ describe("profileScheduleRows", () => {
       matches: [match("m1")],
       resultByMatchId: new Map(),
       motwSelections: [],
+      heldMatchIds: new Set(),
     });
     expect(asNeutral[0].isMine).toBe(false);
   });
@@ -100,9 +105,10 @@ describe("profileScheduleRows", () => {
       matches: [match("m1"), match("m2", { round: 2, opponent: null })],
       resultByMatchId: new Map([["m1", normalResult("m1")]]),
       motwSelections: [{ matchId: "m1", youtubeUrl: "https://youtu.be/x" }],
+      heldMatchIds: new Set(),
     });
     expect(rows[0].isMotw).toBe(true);
-    expect(rows[0].motwEmbargo).toBeNull();
+    expect(rows[0].embargo).toBeNull();
     expect(rows[0].scoreSelf).toBe(2);
     expect(rows[1].opponent).toBeNull();
   });
@@ -113,6 +119,7 @@ describe("profileScheduleRows", () => {
       matches: [match("m1")],
       resultByMatchId: new Map([["m1", normalResult("m1")]]),
       motwSelections: [{ matchId: "m1", youtubeUrl: null }],
+      heldMatchIds: new Set<string>(),
     };
 
     it("withholds the result from a guest", () => {
@@ -126,7 +133,7 @@ describe("profileScheduleRows", () => {
         scoreSelf: null,
         scoreOpponent: null,
         isMotw: true,
-        motwEmbargo: "withheld",
+        embargo: { reason: "motw", access: "withheld" },
       });
     });
 
@@ -136,7 +143,7 @@ describe("profileScheduleRows", () => {
         viewerId: "someone",
         viewerIsStaff: false,
       });
-      expect(row.motwEmbargo).toBe("withheld");
+      expect(row.embargo?.access).toBe("withheld");
       expect(row.scoreSelf).toBeNull();
     });
 
@@ -147,10 +154,45 @@ describe("profileScheduleRows", () => {
         { viewerId: "someone", viewerIsStaff: true },
       ]) {
         const [row] = profileScheduleRows({ ...base, ...viewer });
-        expect(row.motwEmbargo).toBe("preview");
+        expect(row.embargo).toEqual({ reason: "motw", access: "preview" });
         expect(row.scoreSelf).toBe(2);
         expect(row.scoreOpponent).toBe(1);
       }
+    });
+  });
+
+  describe("recording hold", () => {
+    const base = {
+      playerId: "owner",
+      matches: [match("m1")],
+      resultByMatchId: new Map([["m1", normalResult("m1")]]),
+      motwSelections: [],
+      heldMatchIds: new Set(["m1"]),
+    };
+
+    it("withholds the result from a guest", () => {
+      const [row] = profileScheduleRows({
+        ...base,
+        viewerId: null,
+        viewerIsStaff: false,
+      });
+      expect(row).toMatchObject({
+        reported: true,
+        scoreSelf: null,
+        scoreOpponent: null,
+        isMotw: false,
+        embargo: { reason: "recording", access: "withheld" },
+      });
+    });
+
+    it("previews the result for the owner", () => {
+      const [row] = profileScheduleRows({
+        ...base,
+        viewerId: "owner",
+        viewerIsStaff: false,
+      });
+      expect(row.embargo).toEqual({ reason: "recording", access: "preview" });
+      expect(row.scoreSelf).toBe(2);
     });
   });
 });

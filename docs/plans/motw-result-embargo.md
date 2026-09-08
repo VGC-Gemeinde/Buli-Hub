@@ -23,7 +23,9 @@ once the VOD is live, after the VOD announcement.
 
 Everything hangs on one signal that already exists: `motw_selections.
 youtube_url`. Null means the VOD is not live; set means it is. No schema
-change.
+change. The rule itself is the shared result embargo
+(`src/features/spoilers/embargo.ts`), which the recording holds reuse with
+a second reason (`docs/plans/recording-holds.md`).
 
 ## Scope
 
@@ -96,29 +98,34 @@ change.
 - Any change to the spoiler cookie, the reveal idiom after the VOD, or the
   MotW VOD announcement text.
 
-## Pure logic (`src/features/motw/motw.ts`, unit-tested)
+## Pure logic (`src/features/spoilers/embargo.ts`, unit-tested)
 
 ```ts
-// The Match of the Week before its VOD: the result is withheld from the
-// public. "withheld": this viewer may not see it; "preview": this viewer
-// (staff or participant) sees it, marked as not public; null: no embargo
-// (not the MotW, or the VOD is attached).
-export type MotwEmbargo = "withheld" | "preview" | null;
+// A result the hub keeps from the public for a while. "motw": the Match of
+// the Week before its VOD; "recording": a match held for a staff recording.
+// "withheld": this viewer may not see it; "preview": this viewer (staff or
+// participant) sees it, marked as not public; null: no embargo.
+export type ResultEmbargo = {
+  reason: "motw" | "recording";
+  access: "withheld" | "preview";
+} | null;
 
-export function motwEmbargo(input: {
-  selection: { youtubeUrl: string | null } | null; // null = not the MotW
+export function resultEmbargo(input: {
+  motw: { youtubeUrl: string | null } | null; // null = not the MotW
+  held: boolean;                               // a recording hold exists
   isStaff: boolean;
   isParticipant: boolean;
-}): MotwEmbargo;
+}): ResultEmbargo;
 
 // Strips the result fields of a withheld row: reported stays true, the
 // score and winner become null. Shared by the overview and profile queries.
 export function withholdScore<T extends { scoreA; scoreB; winnerId }>(row: T): T;
 ```
 
-`PublicMatch` and `ProfileScheduleRow` gain `motwEmbargo: MotwEmbargo`
-next to `isMotw`. `MotwBlockData` derives from a `PublicMatch`, so the
-billboard reads the same field.
+The MotW wins on overlap: a held featured match without VOD carries
+`reason: "motw"`. `PublicMatch` and `ProfileScheduleRow` gain `embargo:
+ResultEmbargo` next to `isMotw`. `MotwBlockData` derives from a
+`PublicMatch`, so the billboard reads the same field.
 
 ## Queries and pages (viewer plumbing)
 
@@ -131,9 +138,9 @@ billboard reads the same field.
   when the viewer may see them.
 - `profileScheduleRows` gains `viewerIsStaff` and takes the selections
   (`motwForWindow` output) instead of a bare id set.
-- Match page: `embargo = motwEmbargo({ selection: motw, isStaff,
+- Match page: `embargo = resultEmbargo({ motw, held, isStaff,
   isParticipant })`; `shownResult` becomes null when withheld, and the
-  `PublicMatchView` is rendered with `state: "open" | "played"`. Dispute
+  `PublicMatchView` is rendered with `state: "open" | "played_motw"`. Dispute
   blocks and the staff panel are unaffected (privileged only).
 
 ## Discord (`src/features/discord-posts/`)
@@ -155,7 +162,7 @@ billboard reads the same field.
 - `SpoilerScore`: `motw` prop becomes `motw?: "reveal" | "locked" | false`;
   `"locked"` renders the orange pill as a `span` with `cursor-default`, no
   hover shift, the withheld title.
-- `MotwBlock`: reads `match.motwEmbargo` for the two new state-box variants.
+- `MotwBlock`: reads `match.embargo` for the two new state-box variants.
   Same fixed 74px footprint, so nothing relayouts.
 - `MotwMatchBanner`: new optional `notPublic` prop → a small chip
   (`Lock` icon from lucide, orange outline, uppercase 12px, matching the
@@ -178,15 +185,15 @@ All copy plain German, no em-dashes, straight quotes.
 
 ## Tests
 
-- **Unit** `motw.test.ts`: `motwEmbargo` (not MotW → null; MotW with URL →
-  null for every viewer; MotW without URL → preview for staff, preview for
-  either participant, withheld for a guest and for a foreign player);
-  `withholdScore`.
+- **Unit** `spoilers/embargo.test.ts`: `resultEmbargo` (not MotW → null;
+  MotW with URL → null for every viewer; MotW without URL → preview for
+  staff, preview for either participant, withheld for a guest and for a
+  foreign player); `withholdScore`.
 - **Unit** `messages.test.ts`: `shouldPostResult` MotW without URL → false,
   MotW with URL → true, the other cases unchanged; `resultMessage` header
   with the MotW suffix.
 - **Unit** `profile.test.ts`: withheld row has null scores and
-  `motwEmbargo: "withheld"`; owner and staff get `"preview"` with scores;
+  `embargo.access: "withheld"`; owner and staff get `"preview"` with scores;
   after the VOD `null` with scores.
 - **Unit** (new) `public-league/queries` row builder: the stripping is a
   pure step, tested on the same matrix.

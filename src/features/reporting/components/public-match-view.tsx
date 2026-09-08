@@ -8,10 +8,11 @@ import type { Identity } from "@/features/season/dashboard";
 // participant players): the pairing with a status chip and an informational
 // edge-state card. Replaces the bare "Noch kein Ergebnis gemeldet." line
 // (GO-LIVE-POLISH §4.4). Once reported, the normal ReportSummary is shown —
-// except for the Match of the Week before its VOD, whose result is withheld
-// from the public: that is the "played" state, same page, different words
-// (docs/plans/motw-result-embargo.md).
-export type PublicMatchState = "open" | "played";
+// except while the result is under embargo and withheld from the public: the
+// Match of the Week before its VOD (docs/plans/motw-result-embargo.md) or a
+// match held for a recording (docs/plans/recording-holds.md). Those are the
+// two "played" states: same page, different words about when the result comes.
+export type PublicMatchState = "open" | "played_motw" | "played_recording";
 
 const STATE_COPY: Record<
   PublicMatchState,
@@ -24,12 +25,19 @@ const STATE_COPY: Record<
     title: "Noch kein Ergebnis",
     body: "Die beiden Spieler haben ihr Match noch nicht gemeldet. Sobald ein Ergebnis vorliegt, findest du hier Spiele, Replays und Teamsheets.",
   },
-  played: {
+  played_motw: {
     chip: "Gespielt",
     sub: "Ergebnis folgt mit dem VOD",
     line: "Das Ergebnis wird veröffentlicht, sobald das VOD online ist.",
     title: "Ergebnis folgt mit dem VOD",
     body: "Das Match of the Week ist gespielt. Spiele, Replays und Teamsheets erscheinen hier zusammen mit dem VOD, damit niemand vorher gespoilert wird.",
+  },
+  played_recording: {
+    chip: "Gespielt",
+    sub: "Ergebnis folgt nach dem Stream",
+    line: "Das Ergebnis wird veröffentlicht, sobald der Stream vorbei ist.",
+    title: "Ergebnis folgt nach dem Stream",
+    body: "Dieses Match wurde für den Stream aufgenommen. Spiele, Replays und Teamsheets erscheinen hier, sobald der Staff das Ergebnis freigibt, damit niemand vorher gespoilert wird.",
   },
 };
 
@@ -63,7 +71,7 @@ export function PublicMatchView({
   // "Gespielt" reads as progress, so it gets the brand tint the grey "Offen"
   // deliberately lacks.
   const chipClass =
-    state === "played"
+    state !== "open"
       ? "bg-brand-blue/10 text-brand-blue dark:bg-white/12 dark:text-white"
       : "bg-muted text-muted-foreground";
   return (

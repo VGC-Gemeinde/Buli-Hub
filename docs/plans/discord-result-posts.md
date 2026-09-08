@@ -37,6 +37,10 @@ schema + logic + action hooks.
   Selecting a MotW deletes an already-existing result post for that match;
   clearing the link deletes it again; removing the pick re-posts the
   (public) result. The channel always matches what the hub shows openly.
+- **Recording holds, the same way**: a match held for a staff recording
+  (`docs/plans/recording-holds.md`) gets no result post while the hold
+  exists; releasing it posts the (public) result as a normal result post,
+  without a header suffix.
 - **MotW VOD post** (`kind = motw_vod`): posted when a YouTube link is first
   attached, edited when the link changes, deleted when the link or the pick
   is removed. Never contains the result.
@@ -119,11 +123,12 @@ FK, RLS on, no policies — server-only).
 - `motwVodMessage(input)` — the VOD announcement.
 - `shouldPostResult(input)` — whether the channel should show a result post
   for a match (no public result → no; pending free win → no; featured as
-  MotW without VOD → no) — the converge decision, exhaustively tested.
+  MotW without VOD → no; held for a recording → no) — the converge
+  decision, exhaustively tested.
 
 **Sync (`sync.ts`, best-effort — every entry point catches, logs, returns):**
 - `syncResultPost(matchId)` — loads current state (match, result, MotW flag,
-  stored post row), computes `resultPostState`, then converges: post / edit /
+  recording hold, stored post row), computes `resultPostState`, then converges: post / edit /
   move / delete / nothing. Handles 404-heal. Skips entirely without the
   channel ids.
 - `syncMotwVodPost(matchId)` — same convergence for the VOD announcement.

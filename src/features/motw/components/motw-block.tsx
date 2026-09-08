@@ -13,7 +13,7 @@ import type { MotwBlockData } from "../motw";
 // MATCH-OF-THE-WEEK.md §2): the league's one editorial moment per week, the
 // only dark panel on the page. Shown only while its round is the current
 // Spieltag. Before the VOD the result is withheld from the public (the row
-// carries no score — `motwEmbargo`); staff and participants get the reveal
+// carries no score — `embargo`); staff and participants get the reveal
 // with a "not public yet" marker. After the VOD the result stays behind a
 // click-to-reveal so visitors can watch first (client-side reveal — a
 // courtesy spoiler tag, not security). Desktop is the A · state · B
@@ -21,7 +21,7 @@ import type { MotwBlockData } from "../motw";
 export function MotwBlock({ motw }: { motw: MotwBlockData }) {
   const [revealed, setRevealed] = useState(false);
   const { match, groupName, youtubeUrl } = motw;
-  const embargo = match.motwEmbargo;
+  const embargo = match.embargo?.access ?? null;
   // findMotw never yields a bye; the guard keeps the types honest.
   if (match.playerB === null) {
     return null;

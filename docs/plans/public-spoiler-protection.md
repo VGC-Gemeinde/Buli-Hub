@@ -50,6 +50,11 @@ scores and stays untouched; participants and staff keep seeing everything.
   the global switch never unhides the Match of the Week. Before the VOD the
   MotW result is not merely covered but withheld from the public entirely
   (`docs/plans/motw-result-embargo.md`).
+- **Recording holds are exempt too**: a match held for a staff recording
+  (`docs/plans/recording-holds.md`) shows the navy "REC" pill instead of the
+  score, inert for the public (the result never reaches the browser),
+  tappable for staff and participants. The switch cannot open it. After the
+  release the row is a regular row under the switch.
 - **Standings stay visible** (confirmed): tables aggregate results and
   inherently leak; hiding them would gut the page.
 

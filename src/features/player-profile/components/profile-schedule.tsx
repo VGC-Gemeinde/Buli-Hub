@@ -90,15 +90,17 @@ function ScheduleRow({
   row: ProfileScheduleRow;
   spoilersOff: boolean;
 }) {
-  // MotW rows ignore the switch (permanent cover); everything else follows
-  // the site-wide rule. Per-row reveals reset when protection turns back on.
-  const hidden = row.isMotw
-    ? row.reported
-    : scoreHidden({
-        reported: row.reported,
-        isMine: row.isMine,
-        spoilersOff,
-      });
+  // MotW rows ignore the switch (permanent cover), and so does any row whose
+  // result is under embargo (a recording hold); everything else follows the
+  // site-wide rule. Per-row reveals reset when protection turns back on.
+  const hidden =
+    row.isMotw || row.embargo !== null
+      ? row.reported
+      : scoreHidden({
+          reported: row.reported,
+          isMine: row.isMine,
+          spoilersOff,
+        });
   const [revealed, setRevealed] = useState(false);
   useEffect(() => {
     if (!spoilersOff) {
@@ -142,7 +144,7 @@ function ScheduleRow({
                 scoreB={row.scoreOpponent}
                 covered={covered}
                 motw={row.isMotw}
-                embargo={row.motwEmbargo}
+                embargo={row.embargo}
                 onReveal={() => setRevealed(true)}
               />
             ) : (

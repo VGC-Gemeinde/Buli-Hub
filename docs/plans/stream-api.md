@@ -15,7 +15,7 @@ Der Hub bleibt die einzige Quelle der Wahrheit; der Stream liest nur. Keine Schr
 - `GET /api/stream/matches`: die aktuelle Saison (`latestWindow`) und alle Matches mit normalem Ergebnis (Best-of-3, `outcome = normal`, Spiele in `match_games`, beide Teamsheets in `team_sheets`). Freilose, Free Wins und Double Losses fehlen: sie haben keine Spiele und keine Teamsheets, im Stream gibt es nichts zu zeigen.
 - `GET /api/stream/matches/[matchId]`: ein Match aus dieser Liste mit Teamsheets und Avataren. 404 für alles andere (falsche Saison, ohne normales Ergebnis, unbekannt).
 - Auth: `Authorization: Bearer <STREAM_API_SECRET>` über `authorizeBearer` in `src/lib/bearer.ts` (vorher `authorizeJob` in `jobs.ts`; die Funktion war schon generisch, die Job-Route nutzt sie weiter). Eigenes Secret, nicht `JOBS_SECRET`, damit beide Aufrufer getrennt rotieren. 503 ohne Secret, 401 bei falschem.
-- Kein Spoilerschutz, kein MotW-Embargo: Der Aufrufer ist der Stream, der das Match zeigt; die Route ist nicht öffentlich und nicht vom Browser erreichbar (kein CORS). Das steht als Kommentar an der Route.
+- Kein Spoilerschutz, kein Embargo (MotW, Aufnahmen): Der Aufrufer ist der Stream, der das Match zeigt; die Route ist nicht öffentlich und nicht vom Browser erreichbar (kein CORS). Das steht als Kommentar an der Route. Beide Embargo-Gründe stehen aber als Flag im Payload (`motw`, `recording`), damit der Stream seine eigenen Aufnahmen markieren kann (`docs/plans/recording-holds.md`).
 
 **Out:**
 
@@ -38,6 +38,7 @@ GET /api/stream/matches
     games: ["a", "b", "a"],            // Sieger je Spiel in Spielreihenfolge
     platform: "showdown" | "cartridge",
     motw: true | false,
+    recording: true | false,           // vom Staff für den Stream zurückgehalten
     reportedAt
   }]
 }
@@ -55,7 +56,7 @@ GET /api/stream/matches/<id>
 
 ## Code
 
-- `src/features/stream-api/queries.ts`: `listStreamMatches(windowId)` und `getStreamMatch(windowId, matchId)`. Joins über `matches`, `sub_divisions`, `divisions`, `match_results`, `match_games`, `team_sheets`, `profiles`, `motw_selections`. Integrationstest wie `public-league`.
+- `src/features/stream-api/queries.ts`: `listStreamMatches(windowId)` und `getStreamMatch(windowId, matchId)`. Joins über `matches`, `sub_divisions`, `divisions`, `match_results`, `match_games`, `team_sheets`, `profiles`, `motw_selections`, `recording_holds`. Integrationstest wie `public-league`.
 - `src/features/stream-api/to-stream-match.ts`: reine Abbildung der Zeilen auf die Payload (Spielreihenfolge, `"a"`/`"b"` aus `winner_id`, Namen), unit-getestet.
 - `src/app/api/stream/matches/route.ts` und `src/app/api/stream/matches/[matchId]/route.ts`: Auth, Saison laden, Query, `Response.json`. `matchId` gegen das UUID-Muster prüfen wie in `teamsheets/queries.ts`, sonst 404.
 - `src/features/stream-api/authorize.ts`: `rejectUnauthorized(request)` liefert die 503- oder 401-Antwort oder null; beide Routen rufen es zuerst.
@@ -65,7 +66,7 @@ GET /api/stream/matches/<id>
 
 ## Tests
 
-- `to-stream-match.test.ts`: Spiele sortiert nach `gameNumber`, Sieger als Seite, Name-Fallback, MotW-Flag.
+- `to-stream-match.test.ts`: Spiele sortiert nach `gameNumber`, Sieger als Seite, Name-Fallback, MotW- und Recording-Flag.
 - `queries.integration.test.ts`: Saison mit normalem Ergebnis, Free Win, offenem Match und Freilos; nur das normale Ergebnis erscheint; Detail liefert beide Sheets; fremde Saison 404.
 - `bearer.test.ts` (vorher `jobs.test.ts`).
 

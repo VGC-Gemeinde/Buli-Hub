@@ -108,18 +108,24 @@ export function motwVodMessage(input: {
 
 // Whether the results channel should carry a result post for a match — the
 // converge decision. "No" for unreported matches, results the hub itself
-// still hides (pending free wins), the Match of the Week while its result is
-// under embargo (no VOD yet; once the link is attached the result is public
-// and posted like any other), and drop-decided matches (drop free wins get
-// no messages; existing posts of played matches stay as historical records
-// until the match is touched again).
+// still hides (pending free wins), results under embargo (the Match of the
+// Week without its VOD, a match held for a recording; once the link is
+// attached or the hold released the result is public and posted like any
+// other), and drop-decided matches (drop free wins get no messages; existing
+// posts of played matches stay as historical records until the match is
+// touched again).
 export function shouldPostResult(input: {
   // The match's MotW selection, null when it is not the featured match.
   motw: { youtubeUrl: string | null } | null;
+  // A recording hold exists (docs/plans/recording-holds.md).
+  held: boolean;
   hasDroppedParticipant: boolean;
   result: { outcome: MatchOutcome; confirmedAt: Date | null } | null;
 }): boolean {
   if (input.motw !== null && input.motw.youtubeUrl === null) {
+    return false;
+  }
+  if (input.held) {
     return false;
   }
   if (input.hasDroppedParticipant || input.result === null) {

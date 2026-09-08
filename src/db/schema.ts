@@ -426,6 +426,22 @@ export const motwSelections = pgTable(
   (table) => [unique().on(table.windowId, table.round)],
 );
 
+// A match staff record from the spectator perspective for the Gemeinde stream
+// (docs/plans/recording-holds.md). While the row exists, the match's result
+// is withheld from the public and from Discord, exactly like the Match of
+// the Week before its VOD; releasing the hold deletes the row. `window_id`
+// and `round` are denormalised so the season's holds and the stale ones
+// (Spieltag over) are one query. FKs + RLS in a custom migration.
+export const recordingHolds = pgTable("recording_holds", {
+  matchId: uuid("match_id").primaryKey(),
+  windowId: uuid("window_id").notNull(),
+  round: integer("round").notNull(),
+  heldById: uuid("held_by_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 // What a Discord post in the results channel announces: a match result, or
 // the Match-of-the-Week VOD.
 export const discordPostKindEnum = pgEnum("discord_post_kind", [

@@ -7,6 +7,7 @@ import {
   matches,
   motwSelections,
   profiles,
+  recordingHolds,
   subDivisions,
 } from "@/db/schema";
 import { saveResult } from "@/features/reporting/queries";
@@ -134,6 +135,12 @@ beforeAll(async () => {
     matchId: played,
     selectedById: alice,
   });
+  await db.insert(recordingHolds).values({
+    matchId: played,
+    windowId,
+    round: 2,
+    heldById: alice,
+  });
 });
 
 afterAll(async () => {
@@ -158,6 +165,7 @@ describe("listStreamMatches", () => {
       games: ["a", "b", "a"],
       platform: "showdown",
       motw: true,
+      recording: true,
     });
     expect(list[0]).not.toHaveProperty("sheets");
   });

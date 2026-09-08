@@ -24,6 +24,7 @@ describe("toPublicMatch", () => {
         playerA: alice,
         playerB: bob,
         motw: null,
+        held: false,
         viewer: guest,
       }),
     ).toMatchObject({
@@ -33,7 +34,7 @@ describe("toPublicMatch", () => {
       scoreB: 1,
       winnerId: "alice",
       isMotw: false,
-      motwEmbargo: null,
+      embargo: null,
     });
   });
 
@@ -44,6 +45,7 @@ describe("toPublicMatch", () => {
       playerA: alice,
       playerB: bob,
       motw: null,
+      held: false,
       viewer: guest,
     });
     expect(row).toMatchObject({
@@ -64,6 +66,7 @@ describe("toPublicMatch", () => {
         playerA: alice,
         playerB: bob,
         motw: noVod,
+        held: false,
         viewer: guest,
       });
       expect(row).toMatchObject({
@@ -72,7 +75,7 @@ describe("toPublicMatch", () => {
         scoreB: null,
         winnerId: null,
         isMotw: true,
-        motwEmbargo: "withheld",
+        embargo: { reason: "motw", access: "withheld" },
       });
     });
 
@@ -83,9 +86,10 @@ describe("toPublicMatch", () => {
         playerA: alice,
         playerB: bob,
         motw: noVod,
+        held: false,
         viewer: { userId: "carol", isStaff: false },
       });
-      expect(row.motwEmbargo).toBe("withheld");
+      expect(row.embargo?.access).toBe("withheld");
       expect(row.scoreA).toBeNull();
     });
 
@@ -100,9 +104,10 @@ describe("toPublicMatch", () => {
           playerA: alice,
           playerB: bob,
           motw: noVod,
+          held: false,
           viewer,
         });
-        expect(row.motwEmbargo).toBe("preview");
+        expect(row.embargo).toEqual({ reason: "motw", access: "preview" });
         expect(row.scoreA).toBe(2);
         expect(row.winnerId).toBe("alice");
       }
@@ -115,11 +120,12 @@ describe("toPublicMatch", () => {
         playerA: alice,
         playerB: bob,
         motw: { youtubeUrl: "https://youtu.be/x" },
+        held: false,
         viewer: guest,
       });
       expect(row).toMatchObject({
         isMotw: true,
-        motwEmbargo: null,
+        embargo: null,
         scoreA: 2,
         scoreB: 1,
       });
@@ -132,13 +138,55 @@ describe("toPublicMatch", () => {
         playerA: alice,
         playerB: bob,
         motw: noVod,
+        held: false,
         viewer: guest,
       });
       expect(row).toMatchObject({
         reported: false,
         isMotw: true,
-        motwEmbargo: "withheld",
+        embargo: { reason: "motw", access: "withheld" },
       });
+    });
+  });
+
+  describe("recording hold", () => {
+    it("withholds the result from a guest and strips the score", () => {
+      const row = toPublicMatch({
+        match,
+        result: won,
+        playerA: alice,
+        playerB: bob,
+        motw: null,
+        held: true,
+        viewer: guest,
+      });
+      expect(row).toMatchObject({
+        reported: true,
+        scoreA: null,
+        scoreB: null,
+        winnerId: null,
+        isMotw: false,
+        embargo: { reason: "recording", access: "withheld" },
+      });
+    });
+
+    it("previews it for a participant and for staff", () => {
+      for (const viewer of [
+        { userId: "alice", isStaff: false },
+        { userId: "carol", isStaff: true },
+      ]) {
+        const row = toPublicMatch({
+          match,
+          result: won,
+          playerA: alice,
+          playerB: bob,
+          motw: null,
+          held: true,
+          viewer,
+        });
+        expect(row.embargo).toEqual({ reason: "recording", access: "preview" });
+        expect(row.scoreA).toBe(2);
+      }
     });
   });
 });

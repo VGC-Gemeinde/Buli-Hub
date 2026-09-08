@@ -5,8 +5,9 @@ import { DropBanner } from "@/features/drops/components/drop-banner";
 import { droppedIdsForSubDivision } from "@/features/drops/queries";
 import { SeasonGates } from "@/features/membership/components/season-gates";
 import { MotwMatchBanner } from "@/features/motw/components/motw-match-banner";
-import { motwEmbargo } from "@/features/motw/motw";
 import { motwByMatchId } from "@/features/motw/queries";
+import { RecordingBanner } from "@/features/recordings/components/recording-banner";
+import { isHeld } from "@/features/recordings/queries";
 import { DisputeDialog } from "@/features/reporting/components/dispute-dialog";
 import { PublicMatchView } from "@/features/reporting/components/public-match-view";
 import { ReportForm } from "@/features/reporting/components/report-form";
@@ -24,6 +25,7 @@ import type { EditorSheet } from "@/features/reporting/result-draft";
 import { currentUser } from "@/features/roles/guard";
 import { roleAtLeast } from "@/features/roles/roles";
 import { matchSchedulePublished } from "@/features/schedule/queries";
+import { resultEmbargo } from "@/features/spoilers/embargo";
 import {
   parseSpoilersOff,
   SPOILERS_OFF_COOKIE,
@@ -84,12 +86,16 @@ export default async function MatchReportPage({
   }
 
   const result = await getMatchResult(matchId);
-  // Match of the Week: banner for everyone. Before the VOD the result is
-  // withheld from neutral viewers entirely (it never reaches the page);
-  // afterwards it is spoiler-protected for them. Participants and staff see
+  // Match of the Week and recording hold: a banner for everyone. Under
+  // embargo (MotW before the VOD, held for a recording) the result is
+  // withheld from neutral viewers entirely (it never reaches the page); the
+  // MotW is spoiler-protected for them afterwards. Participants and staff see
   // it as usual, marked as not public while the embargo holds.
-  const motw = await motwByMatchId(matchId);
-  const embargo = motwEmbargo({ selection: motw, isStaff, isParticipant });
+  const [motw, held] = await Promise.all([
+    motwByMatchId(matchId),
+    isHeld(matchId),
+  ]);
+  const embargo = resultEmbargo({ motw, held, isStaff, isParticipant });
   // The global spoiler preference (cookie): with protection on, neutral
   // viewers get a cover instead of the summary; the MotW ignores the switch.
   const spoilersOff = parseSpoilersOff(
@@ -107,7 +113,7 @@ export default async function MatchReportPage({
     result?.outcome === "free_win" &&
     result.confirmedAt === null;
   const shownResult =
-    pendingFreeWinHidden || embargo === "withheld" ? null : result;
+    pendingFreeWinHidden || embargo?.access === "withheld" ? null : result;
   // Dispute machinery stays with participants + staff.
   const dispute = result && privileged ? await matchOpenDispute(matchId) : null;
   // Once decided, the decision and its explanation are what the players get
@@ -199,7 +205,13 @@ export default async function MatchReportPage({
           <MotwMatchBanner
             round={motw.round}
             youtubeUrl={motw.youtubeUrl}
-            notPublic={embargo === "preview" && result !== null}
+            notPublic={embargo?.access === "preview" && result !== null}
+          />
+        ) : held ? (
+          // One banner per match: the MotW's covers a held featured match.
+          <RecordingBanner
+            round={match.round}
+            notPublic={embargo?.access === "preview" && result !== null}
           />
         ) : null}
         {isDropDecided ? (
@@ -290,12 +302,14 @@ export default async function MatchReportPage({
               seasonLabel={seasonLabel}
               playerA={match.playerA}
               playerB={match.playerB}
-              // A withheld MotW result: played, but not for this viewer yet.
+              // A withheld result: played, but not for this viewer yet.
               state={
-                embargo === "withheld" &&
+                embargo?.access === "withheld" &&
                 result !== null &&
                 !pendingFreeWinHidden
-                  ? "played"
+                  ? embargo.reason === "motw"
+                    ? "played_motw"
+                    : "played_recording"
                   : "open"
               }
             />
@@ -310,6 +324,7 @@ export default async function MatchReportPage({
             playerA={match.playerA}
             playerB={match.playerB}
             hasResult={result !== null}
+            held={held}
             outcome={result?.outcome ?? null}
             winnerName={resultWinnerName}
             isPendingFreeWin={isPendingFreeWin}

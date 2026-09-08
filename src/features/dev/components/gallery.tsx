@@ -61,6 +61,14 @@ import type {
   PublicMatch,
   PublicOverview,
 } from "@/features/public-league/queries";
+import { RecordingBanner } from "@/features/recordings/components/recording-banner";
+import { RecordingManager } from "@/features/recordings/components/recording-manager";
+import { StaleHoldsCard } from "@/features/recordings/components/stale-holds-card";
+import type {
+  HeldMatch,
+  RecordingMatch,
+  RecordingWeek,
+} from "@/features/recordings/holds";
 import { AcceptanceStatus } from "@/features/regelwerk/components/acceptance-status";
 import { Callout } from "@/features/regelwerk/components/callout";
 import {
@@ -696,7 +704,7 @@ const profileRow = (
   scoreOpponent: null,
   isMine: false,
   isMotw: false,
-  motwEmbargo: null,
+  embargo: null,
   ...extra,
 });
 const PROFILE_ROWS: ProfileScheduleRow[] = [
@@ -707,7 +715,7 @@ const PROFILE_ROWS: ProfileScheduleRow[] = [
     scoreSelf: 0,
     scoreOpponent: 2,
     isMotw: true,
-    motwEmbargo: null,
+    embargo: null,
   }),
   profileRow("pr4", 4, {
     reported: true,
@@ -721,7 +729,7 @@ const PROFILE_ROWS: ProfileScheduleRow[] = [
   profileRow("pr6", 6, {
     reported: true,
     isMotw: true,
-    motwEmbargo: "withheld",
+    embargo: { reason: "motw", access: "withheld" },
   }),
   profileRow("pr7", 7, {
     reported: true,
@@ -729,7 +737,12 @@ const PROFILE_ROWS: ProfileScheduleRow[] = [
     scoreOpponent: 1,
     isMine: true,
     isMotw: true,
-    motwEmbargo: "preview",
+    embargo: { reason: "motw", access: "preview" },
+  }),
+  // Held for a recording: withheld from this viewer (inert "REC" pill).
+  profileRow("pr8", 8, {
+    reported: true,
+    embargo: { reason: "recording", access: "withheld" },
   }),
 ];
 
@@ -748,7 +761,7 @@ const MOTW_MATCH: PublicMatch = {
   scoreB: 0,
   winnerId: DASH_STANDINGS[0].userId,
   isMotw: true,
-  motwEmbargo: null,
+  embargo: null,
 };
 const MOTW_WITH_VOD: MotwBlockData = {
   match: MOTW_MATCH,
@@ -764,13 +777,13 @@ const MOTW_WITHHELD: MotwBlockData = {
     scoreA: null,
     scoreB: null,
     winnerId: null,
-    motwEmbargo: "withheld",
+    embargo: { reason: "motw", access: "withheld" },
   },
   youtubeUrl: null,
 };
 const MOTW_PREVIEW: MotwBlockData = {
   ...MOTW_WITH_VOD,
-  match: { ...MOTW_MATCH, motwEmbargo: "preview" },
+  match: { ...MOTW_MATCH, embargo: { reason: "motw", access: "preview" } },
   youtubeUrl: null,
 };
 const MOTW_OPEN: MotwBlockData = {
@@ -786,6 +799,85 @@ const MOTW_OPEN: MotwBlockData = {
   rankA: 1,
   rankB: 4,
 };
+
+// Recording holds: the staff workspace's list (one stale, reported hold; one
+// open hold of the running week) and the picker (held, reported, markable).
+function recordingMatch(
+  matchId: string,
+  round: number,
+  groupName: string,
+  a: string,
+  b: string,
+  extra: Partial<RecordingMatch> = {},
+): RecordingMatch {
+  return {
+    matchId,
+    round,
+    tier: Number(groupName.replace(/\D/g, "")) || 1,
+    groupName,
+    playerA: { userId: `${matchId}-a`, name: a, avatarUrl: null },
+    playerB: { userId: `${matchId}-b`, name: b, avatarUrl: null },
+    reported: false,
+    pendingFreeWin: false,
+    decidedByDrop: false,
+    held: false,
+    endsOn: `2026-09-${String(6 + round * 7).padStart(2, "0")}`,
+    ...extra,
+  };
+}
+const RECORDING_HELD: HeldMatch[] = [
+  {
+    ...recordingMatch("rh1", 2, "Division 1a", "Falinks", "Wooloo", {
+      held: true,
+      reported: true,
+    }),
+    stale: true,
+  },
+  {
+    ...recordingMatch("rh2", 3, "Division 2a", "Pawmo", "Toedscool", {
+      held: true,
+      reported: true,
+    }),
+    stale: false,
+  },
+  {
+    ...recordingMatch("rh3", 3, "Division 1b", "Rillaboom", "Indeedee", {
+      held: true,
+    }),
+    stale: false,
+  },
+];
+const RECORDING_WEEKS: RecordingWeek[] = [
+  {
+    round: 3,
+    state: "current",
+    startsOn: "2026-09-21",
+    endsOn: "2026-09-27",
+    matches: [
+      RECORDING_HELD[1],
+      RECORDING_HELD[2],
+      recordingMatch("rw1", 3, "Division 1a", "Falinks", "Wooloo", {
+        reported: true,
+      }),
+      recordingMatch("rw2", 3, "Division 1a", "Pawmo", "Kingambit"),
+      recordingMatch("rw3", 3, "Division 2a", "Toedscool", "Indeedee", {
+        reported: true,
+        pendingFreeWin: true,
+      }),
+      recordingMatch("rw4", 3, "Division 2a", "Rillaboom", "Wooloo"),
+    ],
+  },
+  {
+    round: 4,
+    state: "future",
+    startsOn: "2026-09-28",
+    endsOn: "2026-10-04",
+    matches: [
+      recordingMatch("rw5", 4, "Division 1a", "Falinks", "Kingambit"),
+      recordingMatch("rw6", 4, "Division 2a", "Pawmo", "Toedscool"),
+    ],
+  },
+];
 
 // Staff workspace fixtures. The player rows carry every variation the picker
 // has to survive: missing placement, dropped player, both capture-card states,
@@ -981,7 +1073,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
               scoreB: null,
               winnerId: null,
               isMotw: false,
-              motwEmbargo: null,
+              embargo: null,
             },
             // A foreign reported match — covered pill in the overview specimen.
             {
@@ -995,7 +1087,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
               scoreB: 1,
               winnerId: DASH_STANDINGS[1].userId,
               isMotw: false,
-              motwEmbargo: null,
+              embargo: null,
             },
             {
               matchId: "pm3",
@@ -1008,7 +1100,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
               scoreB: null,
               winnerId: null,
               isMotw: false,
-              motwEmbargo: null,
+              embargo: null,
             },
           ],
         },
@@ -1100,6 +1192,7 @@ function SpoilerScoreDemo() {
   const [revealed, setRevealed] = useState(false);
   const [motwRevealed, setMotwRevealed] = useState(false);
   const [motwPreviewRevealed, setMotwPreviewRevealed] = useState(false);
+  const [recPreviewRevealed, setRecPreviewRevealed] = useState(false);
   return (
     <div className="flex items-center gap-5 font-semibold text-muted-foreground text-xs tabular-nums">
       <SpoilerScore
@@ -1121,7 +1214,7 @@ function SpoilerScoreDemo() {
         scoreB={null}
         covered
         motw
-        embargo="withheld"
+        embargo={{ reason: "motw", access: "withheld" }}
         onReveal={() => {}}
       />
       <SpoilerScore
@@ -1129,8 +1222,23 @@ function SpoilerScoreDemo() {
         scoreB={0}
         covered={!motwPreviewRevealed}
         motw
-        embargo="preview"
+        embargo={{ reason: "motw", access: "preview" }}
         onReveal={() => setMotwPreviewRevealed(true)}
+      />
+      {/* Held for a recording: inert "REC" pill (withheld) and the preview. */}
+      <SpoilerScore
+        scoreA={null}
+        scoreB={null}
+        covered
+        embargo={{ reason: "recording", access: "withheld" }}
+        onReveal={() => {}}
+      />
+      <SpoilerScore
+        scoreA={2}
+        scoreB={1}
+        covered={!recPreviewRevealed}
+        embargo={{ reason: "recording", access: "preview" }}
+        onReveal={() => setRecPreviewRevealed(true)}
       />
       <SpoilerScore scoreA={2} scoreB={0} covered={false} onReveal={() => {}} />
     </div>
@@ -1843,7 +1951,7 @@ export function Gallery() {
         <Specimen label="Globaler Schalter (schreibt das Cookie)">
           <SpoilerSwitchDemo />
         </Specimen>
-        <Specimen label="Verdeckter Score — antippen deckt auf (Standard · MotW · MotW zurückgehalten, inert · MotW-Vorschau · offen)">
+        <Specimen label="Verdeckter Score — antippen deckt auf (Standard · MotW · MotW zurückgehalten, inert · MotW-Vorschau · Aufnahme zurückgehalten, inert · Aufnahme-Vorschau · offen)">
           <SpoilerScoreDemo />
         </Specimen>
         <Specimen label="Match-Seite verdeckt — Showdown 2:1 (Maske, Notiz-Zeile, Spiele-Pills)">
@@ -1886,7 +1994,7 @@ export function Gallery() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-2xl">Spieler-Profil</h2>
-        <Specimen label="Spielplan (verdeckt · offen · MotW · eigenes Match · spielfrei · MotW zurückgehalten · MotW-Vorschau) + Schalter">
+        <Specimen label="Spielplan (verdeckt · offen · MotW · eigenes Match · spielfrei · MotW zurückgehalten · MotW-Vorschau · Aufnahme zurückgehalten) + Schalter">
           <ProfileSpielplan rows={PROFILE_ROWS} initialSpoilersOff={false} />
         </Specimen>
         <Specimen label="Staff-Panel — aktiver Spieler / gedroppter Spieler (Aktionen ohne Staff-Login wirkungslos)">
@@ -2008,6 +2116,37 @@ export function Gallery() {
       </section>
 
       <section className="flex flex-col gap-3">
+        <h2 className="text-2xl">Aufnahmen (Recording holds)</h2>
+        <Specimen label="Staff-Dashboard: überfällige Aufnahmen (alle gemeldet · teils offen · Einzahl)">
+          <div className="flex flex-col gap-3">
+            <StaleHoldsCard summary={{ count: 2, allReported: true }} />
+            <StaleHoldsCard summary={{ count: 3, allReported: false }} />
+            <StaleHoldsCard summary={{ count: 1, allReported: true }} />
+          </div>
+        </Specimen>
+        <Specimen label="Staff-Workspace (Aktionen ohne Staff-Login wirkungslos): Liste mit überfälligem Hold · Picker der aktuellen Woche">
+          <RecordingManager
+            held={RECORDING_HELD}
+            weeks={RECORDING_WEEKS}
+            currentRound={3}
+          />
+        </Specimen>
+        <Specimen label="Staff-Workspace: nichts zurückgehalten">
+          <RecordingManager
+            held={[]}
+            weeks={RECORDING_WEEKS}
+            currentRound={3}
+          />
+        </Specimen>
+        <Specimen label="Match-Seite: Banner (öffentlich · Ergebnis noch nicht öffentlich, Staff/Spieler)">
+          <div className="flex flex-col">
+            <RecordingBanner round={3} />
+            <RecordingBanner round={3} notPublic />
+          </div>
+        </Specimen>
+      </section>
+
+      <section className="flex flex-col gap-3">
         <h2 className="text-2xl">Einteilung: Auf- & Abstieg (Ansicht)</h2>
         <Specimen label="Gültig (Gruppen- & Gesamttabelle, Seams ausgeglichen)">
           <div className="flex h-[520px] flex-col overflow-hidden rounded-lg border">
@@ -2116,7 +2255,7 @@ export function Gallery() {
                           scoreB: 1,
                           winnerId: "u1",
                           isMotw: false,
-                          motwEmbargo: null,
+                          embargo: null,
                         },
                         {
                           matchId: "m2",
@@ -2133,7 +2272,7 @@ export function Gallery() {
                           scoreB: null,
                           winnerId: null,
                           isMotw: false,
-                          motwEmbargo: null,
+                          embargo: null,
                         },
                         {
                           matchId: "m3",
@@ -2154,7 +2293,7 @@ export function Gallery() {
                           scoreB: null,
                           winnerId: null,
                           isMotw: false,
-                          motwEmbargo: null,
+                          embargo: null,
                         },
                       ],
                     },
@@ -2184,7 +2323,7 @@ export function Gallery() {
                           scoreB: 0,
                           winnerId: "u4",
                           isMotw: true,
-                          motwEmbargo: null,
+                          embargo: null,
                         },
                       ],
                     },
@@ -2412,7 +2551,17 @@ export function Gallery() {
             seasonLabel="Saison 1"
             playerA={SUMMARY_A}
             playerB={SUMMARY_B}
-            state="played"
+            state="played_motw"
+          />
+        </Specimen>
+        <Specimen label="Öffentliche Sicht (Gast, Aufnahme gespielt, Ergebnis folgt nach dem Stream)">
+          <PublicMatchView
+            round={2}
+            groupName="Division 1a"
+            seasonLabel="Saison 1"
+            playerA={SUMMARY_A}
+            playerB={SUMMARY_B}
+            state="played_recording"
           />
         </Specimen>
       </section>

@@ -364,10 +364,13 @@ function MatchRow({
   // Foreign reported results are covered until revealed in place (or via the
   // global switch). The MotW ignores the switch: its orange cover pill is the
   // row's only marker and stays until tapped (courtesy tag, not security) —
-  // and before the VOD there is nothing behind it for a withheld viewer.
-  const hidden = match.isMotw
-    ? match.reported
-    : scoreHidden({ reported: match.reported, isMine: mine, spoilersOff });
+  // and before the VOD there is nothing behind it for a withheld viewer. A
+  // result under embargo for any reason (a recording hold too) is covered
+  // the same way: the switch cannot open what is not public.
+  const hidden =
+    match.isMotw || match.embargo !== null
+      ? match.reported
+      : scoreHidden({ reported: match.reported, isMine: mine, spoilersOff });
   const [revealed, setRevealed] = useState(false);
   // Turning protection back on clears per-row reveals — a fresh cover, no
   // half-revealed leftovers (design/SPOILER-SCHUTZ.md §2.1).
@@ -409,7 +412,7 @@ function MatchRow({
               scoreB={match.scoreB}
               covered={covered}
               motw={match.isMotw}
-              embargo={match.motwEmbargo}
+              embargo={match.embargo}
               onReveal={() => setRevealed(true)}
             />
           ) : (

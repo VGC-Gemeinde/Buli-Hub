@@ -9,6 +9,7 @@ import {
   motwSelections,
   placements,
   profiles,
+  recordingHolds,
   registrations,
   subDivisions,
   teamSheets,
@@ -648,6 +649,7 @@ async function seedDevResults(
       const k = current++;
       if (k % 2 === 0) {
         await reportNormal(match.id, a, b, k % 4 === 0 ? a : b, false);
+        reportedNormal.push({ matchId: match.id, a, b });
         motwMatchId ??= match.id;
       }
       // odd → left "offen" this week
@@ -691,6 +693,38 @@ async function seedDevResults(
           eq(placements.userId, dropCandidate.playerAId),
         ),
       );
+  }
+
+  // Recording holds (docs/plans/recording-holds.md): one reported match of
+  // the running week is held (the "REC" pill, the withheld match page, the
+  // list on /staff/aufnahmen), and one reported match of the previous week
+  // is still held (the destructive card on /staff). Neither is the MotW nor
+  // involves the dropped player, so every state stays visible on its own.
+  const holdable = (m: (typeof all)[number]) =>
+    m.id !== motwMatchId &&
+    m.playerAId !== dropCandidate?.playerAId &&
+    m.playerBId !== dropCandidate?.playerAId;
+  const currentHold = all.find(
+    (m) =>
+      m.round === currentRound &&
+      holdable(m) &&
+      reportedNormal.some((r) => r.matchId === m.id),
+  );
+  const staleHold = all.find(
+    (m) =>
+      m.round === currentRound - 1 &&
+      holdable(m) &&
+      reportedNormal.some((r) => r.matchId === m.id),
+  );
+  for (const held of [currentHold, staleHold]) {
+    if (held) {
+      await db.insert(recordingHolds).values({
+        matchId: held.id,
+        windowId,
+        round: held.round,
+        heldById: staffId,
+      });
+    }
   }
 
   // One open dispute (loser contests the result) and one already resolved, so

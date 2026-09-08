@@ -25,6 +25,8 @@ export type StreamMatch = {
   games: Side[];
   platform: Platform;
   motw: boolean;
+  /** Held for a staff recording: the result is not public yet. */
+  recording: boolean;
   reportedAt: string;
 };
 
@@ -53,6 +55,7 @@ export type MatchInput = {
   platform: Platform | null;
   reportedAt: Date;
   motw: boolean;
+  recording: boolean;
   games: { gameNumber: number; winnerId: string }[];
   sheets: { playerId: string; ots: string }[];
 };
@@ -106,6 +109,7 @@ export function toStreamMatchDetail(
     games,
     platform: input.platform,
     motw: input.motw,
+    recording: input.recording,
     reportedAt: input.reportedAt.toISOString(),
     sheets: { a: sheetA.ots, b: sheetB.ots },
   };

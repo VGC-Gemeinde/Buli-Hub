@@ -21,6 +21,7 @@ const base: MatchInput = {
   platform: "showdown",
   reportedAt: new Date("2026-07-03T18:00:00Z"),
   motw: true,
+  recording: true,
   games: [
     { gameNumber: 2, winnerId: bob },
     { gameNumber: 1, winnerId: alice },
@@ -45,6 +46,7 @@ describe("toStreamMatchDetail", () => {
       games: ["a", "b", "a"],
       platform: "showdown",
       motw: true,
+      recording: true,
       reportedAt: "2026-07-03T18:00:00.000Z",
       sheets: { a: "Garchomp @ Life Orb", b: "Whimsicott @ Occa Berry" },
     });

@@ -137,7 +137,8 @@ export type ReportContext = {
   isStaffOrAdmin: (userId: string) => boolean;
   // Whether this match's division requires proof (top-X rule from the
   // seeding): Showdown replays per game / a cartridge video. When false,
-  // proof is optional — provided links are still format-checked.
+  // proof is optional — provided links are still format-checked. The
+  // Match of the Week is never required: it is recorded on stream.
   proofRequired: boolean;
 };
 

@@ -11,11 +11,14 @@ import {
   subDivisions,
   teamSheets,
 } from "@/db/schema";
+import { windowPlayerForm } from "@/features/motw/queries";
 import { db } from "@/lib/db";
 import {
   type MatchInput,
+  NO_RECORD,
   type StreamMatch,
   type StreamMatchDetail,
+  type StreamRecord,
   toStreamMatch,
   toStreamMatchDetail,
 } from "./to-stream-match";
@@ -143,11 +146,33 @@ export async function listStreamMatches(
   return inputs.flatMap((input) => toStreamMatch(input) ?? []);
 }
 
-/** One played match of the season with sheets and avatars; null otherwise. */
+/**
+ * One played match of the season with sheets, photos and both players' season
+ * record; null otherwise. The record is the same tally the standings table
+ * shows (`windowPlayerForm`), so the stream and the hub never disagree. It
+ * counts every decided match of the season, including ones held for a
+ * recording: the stream API carries no embargo, and the hold is flagged as
+ * `recording` for the caller to act on.
+ */
 export async function getStreamMatch(
   windowId: string,
   matchId: string,
 ): Promise<StreamMatchDetail | null> {
-  const [input] = await matchInputs(windowId, matchId);
-  return input ? toStreamMatchDetail(input) : null;
+  const [inputs, form] = await Promise.all([
+    matchInputs(windowId, matchId),
+    windowPlayerForm(windowId),
+  ]);
+  const [input] = inputs;
+  if (!input) {
+    return null;
+  }
+  // A player without a standings row has not been placed in this season.
+  const recordOf = (userId: string): StreamRecord => {
+    const row = form.get(userId);
+    return row ? { wins: row.wins, losses: row.losses } : NO_RECORD;
+  };
+  return toStreamMatchDetail(input, {
+    a: recordOf(input.playerAId),
+    b: recordOf(input.playerBId),
+  });
 }

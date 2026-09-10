@@ -15,6 +15,18 @@ export type Side = "a" | "b";
 
 export type StreamPlayer = { id: string; name: string };
 
+/**
+ * A player's record in the running season: match wins and losses out of
+ * `computeStandings`, the same tally the standings table and the MotW picker
+ * show. Only the match detail carries it, see `toStreamMatch` below.
+ */
+export type StreamRecord = { wins: number; losses: number };
+
+export type StreamRecords = { a: StreamRecord; b: StreamRecord };
+
+/** A player without a standings row yet, and what the list entry passes. */
+export const NO_RECORD: StreamRecord = { wins: 0, losses: 0 };
+
 export type StreamMatch = {
   id: string;
   round: number;
@@ -32,8 +44,8 @@ export type StreamMatch = {
 };
 
 export type StreamMatchDetail = Omit<StreamMatch, "playerA" | "playerB"> & {
-  playerA: StreamPlayer & StreamPlayerImages;
-  playerB: StreamPlayer & StreamPlayerImages;
+  playerA: StreamPlayer & StreamPlayerImages & { record: StreamRecord };
+  playerB: StreamPlayer & StreamPlayerImages & { record: StreamRecord };
   /** Open team sheets as Showdown text, one per side. */
   sheets: { a: string; b: string };
 };
@@ -84,6 +96,7 @@ export type MatchInput = {
  */
 export function toStreamMatchDetail(
   input: MatchInput,
+  records: StreamRecords = { a: NO_RECORD, b: NO_RECORD },
 ): StreamMatchDetail | null {
   if (input.platform === null || input.games.length === 0) {
     return null;
@@ -118,12 +131,14 @@ export function toStreamMatchDetail(
       name: playerName(input.playerA?.displayName, input.playerA?.username),
       photoUrl: streamPhotoUrl(input.playerA?.streamPhotoPath ?? null),
       avatarUrl: null,
+      record: records.a,
     },
     playerB: {
       id: input.playerBId,
       name: playerName(input.playerB?.displayName, input.playerB?.username),
       photoUrl: streamPhotoUrl(input.playerB?.streamPhotoPath ?? null),
       avatarUrl: null,
+      record: records.b,
     },
     games,
     platform: input.platform,
@@ -134,7 +149,11 @@ export function toStreamMatchDetail(
   };
 }
 
-/** The list entry: the detail without avatars and sheets. */
+/**
+ * The list entry: the detail without images, records and sheets. The list is
+ * the match picker, which needs none of them, and computing the standings for
+ * every match of the season would cost a table per call.
+ */
 export function toStreamMatch(input: MatchInput): StreamMatch | null {
   const detail = toStreamMatchDetail(input);
   if (!detail) {

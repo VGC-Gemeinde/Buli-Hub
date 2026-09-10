@@ -46,11 +46,13 @@ GET /api/stream/matches
 GET /api/stream/matches/<id>
 {
   ...dasselbe Match,
-  playerA: { id, name, photoUrl: string | null, avatarUrl: null },
-  playerB: { id, name, photoUrl: string | null, avatarUrl: null },
+  playerA: { id, name, photoUrl: string | null, avatarUrl: null, record: { wins, losses } },
+  playerB: { id, name, photoUrl: string | null, avatarUrl: null, record: { wins, losses } },
   sheets: { a: ots, b: ots }
 }
 ```
+
+`record` ist die Bilanz des Spielers in der laufenden Saison, dieselbe Zahl wie in der Tabelle und im MotW-Picker (`windowPlayerForm`, also `computeStandings`). Nur das Detail trägt sie: die Liste ist der Match-Picker und bräuchte sonst pro Aufruf eine Tabellenberechnung. Ein Spieler ohne Tabellenzeile, also ohne Platzierung in dieser Saison, liest 0:0. Die Bilanz zählt jedes entschiedene Match der Saison, auch die für eine Aufzeichnung zurückgehaltenen: die Stream-API kennt keinen Spoilerschutz und markiert den Halt stattdessen als `recording`.
 
 `name` über `playerName(displayName, username)`. `photoUrl` ist das Bild, das der Spieler selbst für den Stream hochgeladen hat (`docs/plans/stream-photos.md`), oder null; das Overlay zeigt dann seinen Platzhalter. Der Discord-Avatar wird nicht mehr ausgeliefert: `avatarUrl` ist nur noch als Schlüssel vorhanden und immer null, bis `gemeinde-streams` auf `photoUrl` umgestellt ist. Gruppennamen über `subDivisionName` und `subDivisionShortName`.
 

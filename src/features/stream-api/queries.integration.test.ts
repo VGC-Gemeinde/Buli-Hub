@@ -6,6 +6,7 @@ import {
   matchdays,
   matches,
   motwSelections,
+  placements,
   profiles,
   recordingHolds,
   subDivisions,
@@ -68,6 +69,16 @@ beforeAll(async () => {
     .insert(subDivisions)
     .values({ divisionId: division.id, position: 0 })
     .returning({ id: subDivisions.id });
+  // Placed players, so `windowPlayerForm` has a table to compute and the
+  // detail payload can carry a real season record.
+  await db.insert(placements).values(
+    [alice, bob, carol, dave, erin, frank].map((userId) => ({
+      windowId,
+      userId,
+      divisionId: division.id,
+      subDivisionId: group.id,
+    })),
+  );
   await db.insert(matchdays).values([
     { windowId, round: 1, startsOn: "2026-07-01", endsOn: "2026-07-07" },
     { windowId, round: 2, startsOn: "2026-07-08", endsOn: "2026-07-14" },
@@ -202,6 +213,13 @@ describe("getStreamMatch", () => {
     expect(match?.playerB.photoUrl).toBeNull();
     expect(match?.playerA.avatarUrl).toBeNull();
     expect(match?.playerB.avatarUrl).toBeNull();
+  });
+
+  it("carries the season record, the same tally the standings show", async () => {
+    const match = await getStreamMatch(windowId, played);
+    // Alice won this one, and it is the only decided match either has played.
+    expect(match?.playerA.record).toEqual({ wins: 1, losses: 0 });
+    expect(match?.playerB.record).toEqual({ wins: 0, losses: 1 });
   });
 
   it("is null for everything the list does not show", async () => {

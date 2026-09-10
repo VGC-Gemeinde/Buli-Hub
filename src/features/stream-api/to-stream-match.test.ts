@@ -49,8 +49,11 @@ afterAll(() => {
 });
 
 describe("toStreamMatchDetail", () => {
-  it("maps names, groups, games in order and sheets by side", () => {
-    const match = toStreamMatchDetail(base);
+  it("maps names, groups, games in order, sheets and records by side", () => {
+    const match = toStreamMatchDetail(base, {
+      a: { wins: 4, losses: 1 },
+      b: { wins: 2, losses: 3 },
+    });
     expect(match).toEqual({
       id: "m1",
       round: 3,
@@ -63,12 +66,14 @@ describe("toStreamMatchDetail", () => {
           "https://sb.test/storage/v1/object/public/stream-photos/alice/photo.webp",
         // The Discord avatar is no longer part of the stream payload.
         avatarUrl: null,
+        record: { wins: 4, losses: 1 },
       },
       playerB: {
         id: bob,
         name: "bobby",
         photoUrl: null,
         avatarUrl: null,
+        record: { wins: 2, losses: 3 },
       },
       games: ["a", "b", "a"],
       platform: "showdown",
@@ -82,6 +87,12 @@ describe("toStreamMatchDetail", () => {
   it("falls back to the generic player name without a profile", () => {
     const match = toStreamMatchDetail({ ...base, playerA: null });
     expect(match?.playerA.name).toBe("Discord-Nutzer");
+  });
+
+  it("reads 0-0 for a player the caller has no standings row for", () => {
+    const match = toStreamMatchDetail(base);
+    expect(match?.playerA.record).toEqual({ wins: 0, losses: 0 });
+    expect(match?.playerB.record).toEqual({ wins: 0, losses: 0 });
   });
 
   it("is null for a result without platform or games", () => {
@@ -106,7 +117,7 @@ describe("toStreamMatchDetail", () => {
 });
 
 describe("toStreamMatch", () => {
-  it("drops photos and sheets", () => {
+  it("drops photos, records and sheets", () => {
     const match = toStreamMatch(base);
     expect(match).not.toBeNull();
     expect(match).not.toHaveProperty("sheets");

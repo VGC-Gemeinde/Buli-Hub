@@ -5,6 +5,7 @@ import {
   divisions,
   matchdays,
   matches,
+  motwSelections,
   placements,
   profiles,
   seedings,
@@ -136,6 +137,22 @@ describe("getMatchForReport", () => {
       .set({ replayRequiredTiers: 0 })
       .where(eq(seedings.windowId, windowId));
     expect((await getMatchForReport(matchAB))?.proofRequired).toBe(false);
+  });
+
+  it("never requires proof for the Match of the Week", async () => {
+    // Rule covers tier 1 again, so this match would need replays ...
+    await db
+      .update(seedings)
+      .set({ replayRequiredTiers: 1 })
+      .where(eq(seedings.windowId, windowId));
+    expect((await getMatchForReport(matchAB))?.proofRequired).toBe(true);
+    // ... until it is picked as the MotW: recorded on stream, no replay duty.
+    await db
+      .insert(motwSelections)
+      .values({ windowId, round: 1, matchId: matchAB, selectedById: staff });
+    expect((await getMatchForReport(matchAB))?.proofRequired).toBe(false);
+    await db.delete(motwSelections).where(eq(motwSelections.matchId, matchAB));
+    expect((await getMatchForReport(matchAB))?.proofRequired).toBe(true);
   });
 });
 

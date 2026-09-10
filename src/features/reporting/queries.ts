@@ -7,6 +7,7 @@ import {
   matches,
   matchGames,
   matchResults,
+  motwSelections,
   profiles,
   seedings,
   subDivisions,
@@ -72,19 +73,24 @@ export async function getMatchForReport(matchId: string): Promise<{
       // The season's top-X replay rule. Null cannot occur for a running
       // season (finalize gates on it); treated as "required" defensively.
       replayRequiredTiers: seedings.replayRequiredTiers,
+      motwId: motwSelections.id,
     })
     .from(matches)
     .innerJoin(subDivisions, eq(subDivisions.id, matches.subDivisionId))
     .innerJoin(divisions, eq(divisions.id, subDivisions.divisionId))
     .leftJoin(seedings, eq(seedings.windowId, divisions.windowId))
+    .leftJoin(motwSelections, eq(motwSelections.matchId, matches.id))
     .where(eq(matches.id, matchId))
     .limit(1);
   if (!match) {
     return null;
   }
+  // The Match of the Week is played on stream and recorded, so the
+  // recording is its proof: no replay links, whatever the tier rule says.
   const proofRequired =
-    match.replayRequiredTiers === null ||
-    match.tier <= match.replayRequiredTiers;
+    match.motwId === null &&
+    (match.replayRequiredTiers === null ||
+      match.tier <= match.replayRequiredTiers);
 
   const [matchday] = await db
     .select({ endsOn: matchdays.endsOn })

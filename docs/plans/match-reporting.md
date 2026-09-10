@@ -26,7 +26,9 @@ model is built to accommodate them now so that feature needs no migration.
 - A **normal report** carries: per-game winner (UI Win/Loss from the reporter's view,
   stored as absolute winner); a **required pokepaste team sheet for both players**; the
   **platform**; **Showdown → a replay link per played game (required)**, **Cartridge → one
-  optional video link**.
+  optional video link**. Required only where the season's top-X replay rule says so, and
+  never for the Match of the Week: that one is played on stream and recorded, the
+  recording is its proof (`getMatchForReport` sets `proofRequired` false for it).
 - A **free win** (walkover): which participant wins + reason + the staff/admin member
   (never `dev`) discussed with. No games/sheets/replays. **Pending** until a staff member
   confirms — confirmation UI is deferred (staff dashboard), so a reported free win stays

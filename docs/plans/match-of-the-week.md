@@ -40,6 +40,10 @@ Rudimentary-but-intentional design; hand-off + design pass come later.
   click-to-reveal once reported. No MotW for the current round → no block.
 - **Stream photo**: the two featured players are offered the picture the
   stream shows next to their name (`docs/plans/stream-photos.md`).
+- **No replay duty**: the match is recorded on stream, so the report needs
+  no replay links even in a tier the season's replay rule covers
+  (`proofRequired` false in `getMatchForReport`; links given are still
+  format-checked).
 - **Result embargo until the VOD** (`docs/plans/motw-result-embargo.md`):
   while the pick has no YouTube link, the result is withheld from everyone
   but staff and the two participants — it never reaches their browser. The

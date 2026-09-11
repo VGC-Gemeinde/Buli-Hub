@@ -43,7 +43,7 @@ jobs:
       # reasons unrelated to the code. A pinned tag is downloaded directly, with
       # no API lookup, so CI no longer depends on a shared quota. Bump
       # deliberately; keep it in step with the CLI used locally.
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.109.0
       - run: supabase start

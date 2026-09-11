@@ -42,7 +42,7 @@ export default async function StaffRecordingsPage() {
     windowMatchOverview(window.id),
     holdsForWindow(window.id),
   ]);
-  const heldIds = new Set(holds.map((h) => h.matchId));
+  const roleByMatch = new Map(holds.map((h) => [h.matchId, h.motwRole]));
   const photos = await streamPhotoPathsFor([
     ...new Set(
       overview.flatMap((match) => [match.playerA.userId, match.playerB.userId]),
@@ -66,7 +66,8 @@ export default async function StaffRecordingsPage() {
     reported: match.outcome !== null,
     pendingFreeWin: match.outcome === "free_win" && match.confirmedAt === null,
     decidedByDrop: match.decidedByDrop,
-    held: heldIds.has(match.matchId),
+    held: roleByMatch.has(match.matchId),
+    motwRole: roleByMatch.get(match.matchId) ?? null,
     endsOn: match.endsOn,
   }));
 

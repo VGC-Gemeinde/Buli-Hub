@@ -47,7 +47,13 @@ copy talks about the "Stream" ("Ergebnis folgt nach dem Stream").
 - **Schema**: new table `recording_holds` (`match_id` PK, `window_id`,
   `round`, `held_by_id`, `created_at`). A row is a hold; releasing deletes
   it. Generated migration plus a custom FK/RLS migration in the house
-  pattern (`motw_fk_rls`).
+  pattern (`motw_fk_rls`). The table also carries `motw_role`, which makes a
+  hold a Match-of-the-Week candidate on top of being a recording
+  (`docs/plans/motw-candidates.md`): a candidate *is* a recording, so it needs
+  no second kind of withheld state, appears in this workspace like any other
+  hold, and is released here the same way. Releasing ends the candidacy with
+  the hold, and the rows of a week carry a "MotW-Hauptmatch" / "MotW-Backup"
+  chip so that is visible before the click.
 - **Embargo rule** (pure, generalised): `resultEmbargo({ motw, held,
   isStaff, isParticipant })` returns `{ reason: "motw" | "recording",
   access: "withheld" | "preview" } | null`. The result is embargoed while

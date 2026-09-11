@@ -595,9 +595,6 @@ async function seedDevResults(
 
   // Reported normal matches (matchId + participants) to hang disputes on.
   const reportedNormal: { matchId: string; a: string; b: string }[] = [];
-  // The current round's Match of the Week (first reported current-round match,
-  // so block + badge + spoiler reveal all have something to show).
-  let motwMatchId: string | null = null;
 
   let past = 0;
   let current = 0;
@@ -651,35 +648,57 @@ async function seedDevResults(
       if (k % 2 === 0) {
         await reportNormal(match.id, a, b, k % 4 === 0 ? a : b, false);
         reportedNormal.push({ matchId: match.id, a, b });
-        motwMatchId ??= match.id;
       }
       // odd → left "offen" this week
     }
     // future rounds stay open
   }
 
-  // Feature it as the Match of the Week — with a VOD link, so the public
-  // block shows both the YouTube button and the spoiler-protected result.
-  if (motwMatchId) {
-    await db.insert(motwSelections).values({
-      windowId,
-      round: currentRound,
-      matchId: motwMatchId,
-      youtubeUrl: "https://www.youtube.com/watch?v=vgc-bundesliga",
-      selectedById: staffId,
-    });
+  // The Match of the Week in the shape the workspace is built for
+  // (docs/plans/motw-candidates.md): the Spieltag before last is confirmed and
+  // has its VOD (row pill, reveal, YouTube button), last Spieltag is confirmed
+  // without one, so the billboard carries it with the result still withheld,
+  // and the running Spieltag has a Hauptkandidat plus a backup that nobody has
+  // decided between yet — which is what staff confirm.
+  const reportedInRound = (round: number) =>
+    all.filter(
+      (m) =>
+        m.round === round && reportedNormal.some((r) => r.matchId === m.id),
+    );
+  const confirmedMatch = reportedInRound(currentRound - 1)[0] ?? null;
+  const vodMatch = reportedInRound(currentRound - 2)[0] ?? null;
+  const motwCandidates = reportedInRound(currentRound).slice(0, 2);
+
+  for (const [round, match, youtubeUrl] of [
+    [currentRound - 1, confirmedMatch, null],
+    [
+      currentRound - 2,
+      vodMatch,
+      "https://www.youtube.com/watch?v=vgc-bundesliga",
+    ],
+  ] as const) {
+    if (match && round >= 1) {
+      await db.insert(motwSelections).values({
+        windowId,
+        round,
+        matchId: match.id,
+        youtubeUrl,
+        selectedById: staffId,
+      });
+    }
   }
 
-  // Drop one player (not a MotW participant) so tables, row scores, match
-  // pages and the staff Drops list all show the state.
-  const motwMatch = all.find((m) => m.id === motwMatchId);
+  // Drop one player who is in none of the featured matches, so tables, row
+  // scores, match pages and the staff Drops list all show the state without
+  // colliding with the MotW.
+  const featured = new Set(
+    [confirmedMatch, vodMatch, ...motwCandidates].flatMap((m) =>
+      m ? [m.playerAId, m.playerBId] : [],
+    ),
+  );
   const dropCandidate = [...all]
     .reverse()
-    .find(
-      (m) =>
-        m.playerAId !== motwMatch?.playerAId &&
-        m.playerAId !== motwMatch?.playerBId,
-    );
+    .find((m) => !featured.has(m.playerAId));
   if (dropCandidate) {
     await db
       .update(placements)
@@ -696,45 +715,48 @@ async function seedDevResults(
       );
   }
 
-  // Recording holds (docs/plans/recording-holds.md): one reported match of
-  // the running week is held (the "REC" pill, the withheld match page, the
-  // list on /staff/aufnahmen), and one reported match of the previous week
-  // is still held (the destructive card on /staff). Neither is the MotW nor
-  // involves the dropped player, so every state stays visible on its own.
-  const holdable = (m: (typeof all)[number]) =>
-    m.id !== motwMatchId &&
-    m.playerAId !== dropCandidate?.playerAId &&
-    m.playerBId !== dropCandidate?.playerAId;
-  const currentHold = all.find(
-    (m) =>
-      m.round === currentRound &&
-      holdable(m) &&
-      reportedNormal.some((r) => r.matchId === m.id),
-  );
-  const staleHold = all.find(
-    (m) =>
-      m.round === currentRound - 1 &&
-      holdable(m) &&
-      reportedNormal.some((r) => r.matchId === m.id),
-  );
-  for (const held of [currentHold, staleHold]) {
-    if (held) {
-      await db.insert(recordingHolds).values({
-        matchId: held.id,
-        windowId,
-        round: held.round,
-        heldById: staffId,
-      });
-    }
+  // Recording holds (docs/plans/recording-holds.md). Three of them, all
+  // reported and therefore all withheld: the running week's two MotW
+  // candidates (Hauptmatch + Backup, held because a candidate is a recording),
+  // and one plain recording of the previous week that nobody released — the
+  // stale case the destructive card on /staff warns about.
+  const staleHold =
+    all.find(
+      (m) =>
+        m.round === currentRound - 1 &&
+        m.id !== confirmedMatch?.id &&
+        m.playerAId !== dropCandidate?.playerAId &&
+        m.playerBId !== dropCandidate?.playerAId &&
+        reportedNormal.some((r) => r.matchId === m.id),
+    ) ?? null;
+  const holds: {
+    match: (typeof all)[number];
+    role: "primary" | "backup" | null;
+  }[] = [
+    ...motwCandidates.map((match, index) => ({
+      match,
+      role: (index === 0 ? "primary" : "backup") as "primary" | "backup",
+    })),
+    ...(staleHold ? [{ match: staleHold, role: null }] : []),
+  ];
+  for (const hold of holds) {
+    await db.insert(recordingHolds).values({
+      matchId: hold.match.id,
+      windowId,
+      round: hold.match.round,
+      heldById: staffId,
+      motwRole: hold.role,
+    });
   }
 
-  // Stream photos for two of the players the stream would show (one MotW
-  // player, one of the held match), so the staff marks, the profile card and
-  // the stream payload all have a picture, and their opponents show the
-  // "no photo yet" state next to them.
-  const photoFor = [motwMatch?.playerAId, currentHold?.playerAId].filter(
-    (id): id is string => typeof id === "string",
-  );
+  // Stream photos for two of the players the stream would show (one from the
+  // confirmed Match of the Week, one from a candidate of the running week), so
+  // the staff marks, the profile card and the stream payload all have a
+  // picture, and their opponents show the "no photo yet" state next to them.
+  const photoFor = [
+    confirmedMatch?.playerAId,
+    motwCandidates[0]?.playerAId,
+  ].filter((id): id is string => typeof id === "string");
   if (photoFor.length > 0) {
     await seedStreamPhotos(photoFor);
   }

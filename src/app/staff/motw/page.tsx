@@ -6,7 +6,7 @@ import { MotwManager } from "@/features/motw/components/motw-manager";
 import {
   buildMotwWeeks,
   initialMotwRound,
-  type MotwCandidate,
+  type MotwOption,
   type MotwPlayer,
 } from "@/features/motw/motw";
 import {
@@ -15,6 +15,7 @@ import {
   profileFlags,
   windowPlayerForm,
 } from "@/features/motw/queries";
+import { holdsForWindow } from "@/features/recordings/queries";
 import { windowMatchOverview } from "@/features/reporting/queries";
 import { currentUser } from "@/features/roles/guard";
 import { roleAtLeast } from "@/features/roles/roles";
@@ -26,8 +27,10 @@ import { streamPhotoPathsFor } from "@/features/stream-photos/queries";
 import { germanToday } from "@/lib/german-time";
 
 // Staff workspace for the Match of the Week: one Spieltag at a time, paged
-// across the whole season. The current and every later Spieltag can be picked;
-// past ones keep their pick and only their VOD link stays editable.
+// across the whole season. Candidates (Hauptmatch + backups) are nominated for
+// the current and every later Spieltag, and one of them is confirmed as the
+// Match of the Week (docs/plans/motw-candidates.md); a settled past week keeps
+// its confirmation and only its VOD link stays editable.
 export default async function StaffMotwPage({
   searchParams,
 }: {
@@ -43,15 +46,16 @@ export default async function StaffMotwPage({
     redirect("/staff");
   }
   const matchdays = await matchdaysForWindow(window.id);
-  // No schedule → no running season → nothing to pick.
+  // No schedule → no running season → nothing to nominate.
   if (matchdays.length === 0) {
     redirect("/staff");
   }
 
   const today = germanToday();
   const currentRound = currentMatchday(matchdays, today)?.round ?? null;
-  const [selections, overview, form, flags] = await Promise.all([
+  const [selections, holds, overview, form, flags] = await Promise.all([
     motwForWindow(window.id),
+    holdsForWindow(window.id),
     windowMatchOverview(window.id),
     windowPlayerForm(window.id),
     profileFlags(),
@@ -78,8 +82,8 @@ export default async function StaffMotwPage({
     };
   };
 
-  // Drop-decided matches cannot be featured — they never become candidates.
-  const candidates: MotwCandidate[] = overview
+  // Drop-decided matches cannot be featured — they never become options.
+  const options: MotwOption[] = overview
     .filter((match) => !match.decidedByDrop)
     .map((match) => ({
       matchId: match.matchId,
@@ -95,14 +99,18 @@ export default async function StaffMotwPage({
     matchdays,
     currentRound,
     selections,
-    candidates,
+    options,
+    holds,
   });
 
   const requested = Number((await searchParams).spieltag);
   const fallback = initialMotwRound({
     totalRounds: matchdays.length,
     currentRound,
-    selectedRounds: new Set(selections.map((s) => s.round)),
+    confirmedRounds: new Set(selections.map((s) => s.round)),
+    candidateRounds: new Set(
+      holds.filter((h) => h.motwRole !== null).map((hold) => hold.round),
+    ),
   });
   const initialRound = weeks.some((week) => week.round === requested)
     ? requested
@@ -128,10 +136,12 @@ export default async function StaffMotwPage({
           </h1>
         </div>
         <p className="mt-2 mb-9 max-w-[680px] text-muted-foreground text-sm">
-          Ein Match pro Spieltag, ligaweit über alle Divisionen. Der aktuelle
-          und jeder kommende Spieltag lassen sich frei wählen. Ein vergangener
-          Spieltag lässt sich nachtragen, solange er noch kein Match hat. Ist
-          eins gewählt, bleibt nur der VOD-Link änderbar.
+          Ein Match pro Spieltag, ligaweit über alle Divisionen. Pro Woche
+          werden ein Hauptmatch und beliebig viele Backups gewählt, alle werden
+          wie Aufnahmen zurückgehalten. Welches davon das Match of the Week war,
+          wird hier bestätigt. Bis dahin bewirbt die Startseite weiter das Match
+          der Vorwoche. Ein vergangener Spieltag lässt sich nachtragen, solange
+          er nichts Bestätigtes hat. Danach bleibt nur der VOD-Link änderbar.
         </p>
         <MotwManager
           weeks={weeks}

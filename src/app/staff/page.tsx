@@ -218,7 +218,10 @@ export default async function StaffPage() {
     const todo = motwTodo({
       currentRound: week?.round ?? null,
       totalRounds: matchdays.length,
-      selectedRounds: new Set(motwSelections.map((s) => s.round)),
+      confirmedRounds: new Set(motwSelections.map((s) => s.round)),
+      candidateRounds: new Set(
+        holds.filter((h) => h.motwRole !== null).map((hold) => hold.round),
+      ),
     });
     // Recording holds whose Spieltag is over: a forgotten release is a
     // result the community never sees (docs/plans/recording-holds.md).

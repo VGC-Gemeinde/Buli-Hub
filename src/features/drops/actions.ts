@@ -8,6 +8,7 @@ import {
   matchSelectionContext,
   motwForWindow,
 } from "@/features/motw/queries";
+import { clearMotwRole, holdsForWindow } from "@/features/recordings/queries";
 import { currentUser } from "@/features/roles/guard";
 import { roleAtLeast } from "@/features/roles/roles";
 import { currentMatchday } from "@/features/season/dashboard";
@@ -71,8 +72,8 @@ export async function dropPlayer(input: {
   });
 
   // A scheduled Match of the Week featuring the player is no longer playable
-  // — remove the pick (and its VOD announcement, if any). Past picks are
-  // history and stay.
+  // — remove the confirmation (and its VOD announcement, if any). Settled past
+  // weeks are history and stay.
   const matchdays = await matchdaysForWindow(window.id);
   const today = germanToday();
   const openRounds = selectableRounds(
@@ -90,6 +91,23 @@ export async function dropPlayer(input: {
     ) {
       await deleteMotw(window.id, selection.round);
       await syncMotwVodPost(selection.matchId);
+    }
+  }
+
+  // Same for a candidacy: a match with a dropped player can never become the
+  // Match of the Week, so it leaves the race. The hold itself stays — releasing
+  // a recording is a decision for /staff/aufnahmen, drops do not make it
+  // (docs/plans/recording-holds.md).
+  const candidates = (await holdsForWindow(window.id)).filter(
+    (hold) => hold.motwRole !== null && openRounds.has(hold.round),
+  );
+  for (const candidate of candidates) {
+    const context = await matchSelectionContext(candidate.matchId);
+    if (
+      context &&
+      (context.playerAId === input.userId || context.playerBId === input.userId)
+    ) {
+      await clearMotwRole(candidate.matchId);
     }
   }
 

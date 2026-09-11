@@ -21,6 +21,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -411,10 +412,12 @@ export const teamSheets = pgTable(
   (table) => [unique().on(table.matchId, table.playerId)],
 );
 
-// The Match of the Week (never translated): one featured match per Spieltag
-// (window + round), picked by staff at the start of the week. Its result is
-// spoiler-protected in every public view; the optional YouTube URL is attached
-// once the VOD is uploaded (possibly after the Spieltag). Replacing the pick
+// The Match of the Week (never translated): the one **confirmed** featured
+// match per Spieltag (window + round). Staff nominate candidates first (a
+// role on `recording_holds`, docs/plans/motw-candidates.md) and confirm one
+// of them, which is when this row appears. Its result is spoiler-protected in
+// every public view; the optional YouTube URL is attached once the VOD is
+// uploaded (possibly well after the Spieltag). Replacing the confirmation
 // clears the URL — it belongs to the previous match. FKs + RLS in a custom
 // migration.
 export const motwSelections = pgTable(
@@ -436,21 +439,43 @@ export const motwSelections = pgTable(
   (table) => [unique().on(table.windowId, table.round)],
 );
 
+// Where a recording stands in the race for the Match of the Week
+// (docs/plans/motw-candidates.md): the Hauptkandidat staff plan to feature,
+// or one of the backups they record in case it falls through. Null means an
+// ordinary recording that was never in the running.
+export const motwRoleEnum = pgEnum("motw_role", ["primary", "backup"]);
+
 // A match staff record from the spectator perspective for the Gemeinde stream
 // (docs/plans/recording-holds.md). While the row exists, the match's result
 // is withheld from the public and from Discord, exactly like the Match of
 // the Week before its VOD; releasing the hold deletes the row. `window_id`
 // and `round` are denormalised so the season's holds and the stale ones
 // (Spieltag over) are one query. FKs + RLS in a custom migration.
-export const recordingHolds = pgTable("recording_holds", {
-  matchId: uuid("match_id").primaryKey(),
-  windowId: uuid("window_id").notNull(),
-  round: integer("round").notNull(),
-  heldById: uuid("held_by_id").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+//
+// `motw_role` makes the row a Match-of-the-Week candidate on top of that: a
+// candidate *is* a recording, so candidacy is a role on the hold rather than
+// a second kind of withheld state. Confirming a candidate writes the
+// `motw_selections` row and deletes its hold, so the MotW embargo (until the
+// VOD) takes over from the recording embargo without a gap.
+export const recordingHolds = pgTable(
+  "recording_holds",
+  {
+    matchId: uuid("match_id").primaryKey(),
+    windowId: uuid("window_id").notNull(),
+    round: integer("round").notNull(),
+    heldById: uuid("held_by_id").notNull(),
+    motwRole: motwRoleEnum("motw_role"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // At most one Hauptkandidat per Spieltag; the backups are unordered.
+    uniqueIndex("recording_holds_motw_primary_uq")
+      .on(table.windowId, table.round)
+      .where(sql`${table.motwRole} = 'primary'`),
+  ],
+);
 
 // What a Discord post in the results channel announces: a match result, or
 // the Match-of-the-Week VOD.

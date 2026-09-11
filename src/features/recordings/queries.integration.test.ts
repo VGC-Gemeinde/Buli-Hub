@@ -4,7 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { divisions, matches, subDivisions } from "@/db/schema";
 import { createWindow } from "@/features/staff/queries";
 import { db } from "@/lib/db";
-import { deleteHold, holdsForWindow, insertHold, isHeld } from "./queries";
+import {
+  clearMotwRole,
+  deleteHold,
+  holdsForWindow,
+  insertHold,
+  isHeld,
+  nominateHold,
+} from "./queries";
 
 const alice = randomUUID();
 const bob = randomUUID();
@@ -12,6 +19,9 @@ const staff = randomUUID();
 let windowId: string;
 let matchR1: string;
 let matchR2: string;
+// Two pairings of the same Spieltag, for the Hauptkandidat rule.
+let candA: string;
+let candB: string;
 
 beforeAll(async () => {
   for (const id of [alice, bob, staff]) {
@@ -49,6 +59,26 @@ beforeAll(async () => {
     .returning({ id: matches.id, round: matches.round });
   matchR1 = inserted.find((m) => m.round === 1)?.id as string;
   matchR2 = inserted.find((m) => m.round === 2)?.id as string;
+
+  const candidates = await db
+    .insert(matches)
+    .values([
+      {
+        subDivisionId: subDivision.id,
+        round: 3,
+        playerAId: alice,
+        playerBId: bob,
+      },
+      {
+        subDivisionId: subDivision.id,
+        round: 3,
+        playerAId: bob,
+        playerBId: alice,
+      },
+    ])
+    .returning({ id: matches.id });
+  candA = candidates[0].id;
+  candB = candidates[1].id;
 });
 
 afterAll(async () => {
@@ -90,5 +120,81 @@ describe("recording holds", () => {
   it("dies with its match", async () => {
     await db.execute(sql`delete from matches where id = ${matchR2}`);
     expect(await holdsForWindow(windowId)).toEqual([]);
+  });
+});
+
+// A Match-of-the-Week candidate is a hold with a role
+// (docs/plans/motw-candidates.md), so both live in one table and one query.
+describe("MotW candidacy on a hold", () => {
+  it("nominates, promotes and demotes within a Spieltag", async () => {
+    await nominateHold({
+      matchId: candA,
+      windowId,
+      round: 3,
+      staffId: staff,
+      role: "primary",
+    });
+    await nominateHold({
+      matchId: candB,
+      windowId,
+      round: 3,
+      staffId: staff,
+      role: "backup",
+    });
+    const roles = async () =>
+      new Map(
+        (await holdsForWindow(windowId))
+          .filter((h) => h.round === 3)
+          .map((h) => [h.matchId, h.motwRole]),
+      );
+    expect(await roles()).toEqual(
+      new Map([
+        [candA, "primary"],
+        [candB, "backup"],
+      ]),
+    );
+
+    // Only one Hauptkandidat per Spieltag: promoting the backup demotes the
+    // other in the same write, which is what the partial unique index needs.
+    await nominateHold({
+      matchId: candB,
+      windowId,
+      round: 3,
+      staffId: staff,
+      role: "primary",
+    });
+    expect(await roles()).toEqual(
+      new Map([
+        [candA, "backup"],
+        [candB, "primary"],
+      ]),
+    );
+  });
+
+  it("clears the role without releasing the match", async () => {
+    expect(await clearMotwRole(candA)).toBe(true);
+    // Still held: the match stays withheld as an ordinary recording.
+    expect(await isHeld(candA)).toBe(true);
+    expect(
+      (await holdsForWindow(windowId)).find((h) => h.matchId === candA)
+        ?.motwRole,
+    ).toBeNull();
+    // Nothing to clear the second time around.
+    expect(await clearMotwRole(candA)).toBe(false);
+  });
+
+  it("refuses a second Hauptkandidat written past the helper", async () => {
+    await expect(
+      db.execute(sql`
+        update recording_holds set motw_role = 'primary' where match_id = ${candA}
+      `),
+    ).rejects.toThrow();
+  });
+
+  it("loses the candidacy with the hold", async () => {
+    expect(await deleteHold(candB)).toBe(true);
+    expect(
+      (await holdsForWindow(windowId)).map((h) => h.matchId),
+    ).not.toContain(candB);
   });
 });

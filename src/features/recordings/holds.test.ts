@@ -93,6 +93,7 @@ const rm = (
   pendingFreeWin: false,
   decidedByDrop: false,
   held: false,
+  motwRole: null,
   endsOn: null,
   ...extra,
 });

@@ -11,17 +11,27 @@ import { divisionName } from "@/features/seeding/seeding";
 import { emphasisSurface } from "@/lib/emphasis";
 import { formatGermanDay } from "@/lib/german-time";
 import { cn } from "@/lib/utils";
-import { removeMotw, selectMotw } from "../actions";
 import {
+  confirmMotw,
+  dropMotwCandidate,
+  type MotwActionResult,
+  nominateMotwCandidate,
+  revokeMotw,
+} from "../actions";
+import {
+  canNominate,
   defaultDivisionFilter,
+  type MotwOption,
+  type MotwRole,
   type MotwSortMode,
   type MotwWeek,
   recordability,
-  sortCandidates,
+  sortOptions,
   toggleAllDivisions,
 } from "../motw";
 import { MotwBadge } from "./motw-badge";
-import { MotwCandidateRow, RowMarker } from "./motw-candidate-row";
+import { MotwCandidatePanel } from "./motw-candidate-panel";
+import { MotwOptionRow, RowMarker } from "./motw-option-row";
 import { MotwSide } from "./motw-player";
 import { MotwVodField } from "./motw-vod-field";
 import { MotwWeekPager } from "./motw-week-pager";
@@ -42,10 +52,15 @@ const STATE_CHIP: Record<MotwWeek["state"], { label: string; loud: boolean }> =
   };
 
 // The staff workspace for the Match of the Week: one Spieltag at a time across
-// the full page, paged through the whole season. The current and every later
-// Spieltag can be picked, replaced and cleared, and a past one that was missed
-// can still be backfilled; once a past week has a pick it is settled and only
-// its VOD link stays editable.
+// the full page, paged through the whole season. Staff nominate a Hauptkandidat
+// and backups for the current and every later Spieltag, and confirm afterwards
+// which of them actually was the Match of the Week
+// (docs/plans/motw-candidates.md). A past week that was missed can still be
+// confirmed; once it is, it is settled and only its VOD link stays editable.
+//
+// This workspace never ends an embargo: a candidate that is dropped stays
+// withheld as an ordinary recording, and publishing happens under Aufnahmen or
+// with the VOD link.
 //
 // Every week is built server-side in one pass, so paging is local state — no
 // round trip, no refetch.
@@ -80,47 +95,70 @@ export function MotwManager({
       />
       {/* Remounting per round resets the picker's open/filter state — moving to
           another week should not inherit the last one's division filter. */}
-      <WeekPanel key={week.round} week={week} />
+      <WeekPanel key={week.round} week={week} currentRound={currentRound} />
     </div>
   );
 }
 
-function WeekPanel({ week }: { week: MotwWeek }) {
+function WeekPanel({
+  week,
+  currentRound,
+}: {
+  week: MotwWeek;
+  currentRound: number | null;
+}) {
   const router = useRouter();
   const [picking, setPicking] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // A finished week that was never picked stays editable — it can be
-  // backfilled, typically once a VOD turns up for it.
+  // A finished week that was never confirmed stays editable — it can be
+  // backfilled, and confirming after the Spieltag is the normal case.
   const { editable } = week;
-  const showPicker = editable && (picking || !week.selection);
+  const hasPrimary = week.candidates.some((c) => c.role === "primary");
+  const showPicker =
+    editable && (picking || (!week.selection && week.candidates.length === 0));
   const chip = STATE_CHIP[week.state];
 
-  async function pick(matchId: string) {
+  // Every row action runs the same way: mark the row busy, report the error in
+  // place, refresh on success. Confirming closes the picker (the week is
+  // decided), nominating keeps it open so the backups can follow.
+  async function run(
+    matchId: string,
+    act: () => Promise<MotwActionResult>,
+    close: boolean,
+  ) {
     setPendingId(matchId);
     setError(null);
-    const result = await selectMotw({ matchId });
+    const result = await act();
     setPendingId(null);
     if (!result.ok) {
       setError(result.error);
       return;
     }
-    setPicking(false);
+    if (close) {
+      setPicking(false);
+    }
     router.refresh();
   }
 
-  async function remove() {
+  const confirm = (matchId: string) =>
+    run(matchId, () => confirmMotw({ matchId }), true);
+  const nominate = (matchId: string, role: MotwRole) =>
+    run(matchId, () => nominateMotwCandidate({ matchId, role }), false);
+  const drop = (matchId: string) =>
+    run(matchId, () => dropMotwCandidate({ matchId }), false);
+
+  async function revoke() {
     setRemoving(true);
     setError(null);
-    const result = await removeMotw({ round: week.round });
+    const result = await revokeMotw({ round: week.round });
     setRemoving(false);
     if (!result.ok) {
       setError(result.error);
       return;
     }
-    setPicking(false);
     router.refresh();
   }
 
@@ -149,15 +187,31 @@ function WeekPanel({ week }: { week: MotwWeek }) {
       </div>
 
       {week.selection ? (
-        <PickPanel
+        <ConfirmedPanel
           week={week}
           editable={editable}
           picking={picking}
           removing={removing}
           onTogglePicking={() => setPicking((v) => !v)}
-          onRemove={remove}
+          onRevoke={revoke}
           onError={setError}
         />
+      ) : week.candidates.length > 0 ? (
+        // The week has candidates but no decision. Once the Spieltag is over
+        // this is what holds the billboard on the previous week, so it is said
+        // loudly.
+        <p
+          className={cn(
+            "rounded-lg px-4 py-3 font-medium text-[13.5px]",
+            week.state === "past"
+              ? emphasisSurface("destructive")
+              : "border bg-muted/40 text-muted-foreground",
+          )}
+        >
+          {week.state === "past"
+            ? "Dieser Spieltag ist vorbei. Bitte bestätigen, welches Match das Match of the Week war. Bis dahin wird weiter das Match der Vorwoche beworben."
+            : "Noch nicht bestätigt. Beworben wird weiter das Match of the Week der Vorwoche, bis hier eins bestätigt ist."}
+        </p>
       ) : (
         <p
           className={cn(
@@ -168,15 +222,36 @@ function WeekPanel({ week }: { week: MotwWeek }) {
           )}
         >
           {week.state === "current"
-            ? "Der aktuelle Spieltag läuft noch ohne Match of the Week."
+            ? "Der aktuelle Spieltag läuft noch ohne Kandidaten für das Match of the Week."
             : week.state === "past"
               ? "Dieser Spieltag ist vorbei und blieb ohne Match of the Week. Nachtragen ist noch möglich."
-              : "Für diesen Spieltag ist noch kein Match of the Week gewählt."}
+              : "Für diesen Spieltag ist noch kein Kandidat gewählt."}
         </p>
       )}
 
+      {week.candidates.length > 0 ? (
+        <MotwCandidatePanel
+          candidates={week.candidates}
+          editable={editable}
+          confirmedMatchId={week.selection?.matchId ?? null}
+          pendingId={pendingId}
+          onConfirm={confirm}
+          onPromote={(matchId) => nominate(matchId, "primary")}
+          onDrop={drop}
+          onAdd={() => setPicking((v) => !v)}
+          addOpen={picking}
+        />
+      ) : null}
+
       {showPicker ? (
-        <Picker week={week} pendingId={pendingId} onPick={pick} />
+        <Picker
+          week={week}
+          currentRound={currentRound}
+          hasPrimary={hasPrimary}
+          pendingId={pendingId}
+          onNominate={nominate}
+          onConfirm={confirm}
+        />
       ) : null}
 
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
@@ -184,15 +259,15 @@ function WeekPanel({ week }: { week: MotwWeek }) {
   );
 }
 
-// The chosen match, in the billboard's broadcast anatomy so the staff view and
-// the public block read as the same object.
-function PickPanel({
+// The confirmed match, in the billboard's broadcast anatomy so the staff view
+// and the public block read as the same object.
+function ConfirmedPanel({
   week,
   editable,
   picking,
   removing,
   onTogglePicking,
-  onRemove,
+  onRevoke,
   onError,
 }: {
   week: MotwWeek;
@@ -200,7 +275,7 @@ function PickPanel({
   picking: boolean;
   removing: boolean;
   onTogglePicking: () => void;
-  onRemove: () => void;
+  onRevoke: () => void;
   onError: (error: string | null) => void;
 }) {
   const match = week.selectedMatch;
@@ -209,13 +284,13 @@ function PickPanel({
   return (
     <div className="flex flex-col gap-5 rounded-xl border border-brand-orange/40 bg-brand-orange/5 px-4 py-4 sm:px-6 sm:py-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <MotwBadge>Gewählt</MotwBadge>
+        <MotwBadge>Bestätigt</MotwBadge>
         {match ? (
           <span className="font-semibold text-[12px] text-muted-foreground uppercase tracking-[0.1em]">
             {shortGroup(match.groupName)}
           </span>
         ) : null}
-        {match ? <RowMarker candidate={match} /> : null}
+        {match ? <RowMarker option={match} /> : null}
         {matchId ? (
           // Wrapped lines align left (DESIGN.md §6): below sm the link takes
           // its own left-aligned line, flush right only on the sm+ one-liner.
@@ -239,10 +314,10 @@ function PickPanel({
           <MotwSide player={match.playerB} side="right" size="lg" linkName />
         </div>
       ) : (
-        // A pick whose match left the candidate set (a participant dropped
-        // afterwards) — still removable, still linkable, just not renderable.
+        // A confirmation whose match left the pairings (a participant dropped
+        // afterwards) — still revocable, still linkable, just not renderable.
         <p className="text-muted-foreground text-sm">
-          Das gewählte Match ist nicht mehr Teil des Spielplans dieses
+          Das bestätigte Match ist nicht mehr Teil des Spielplans dieses
           Spieltags.
         </p>
       )}
@@ -271,7 +346,7 @@ function PickPanel({
             variant="outline"
             onClick={onTogglePicking}
           >
-            {picking ? "Auswahl schließen" : "Anderes Match wählen"}
+            {picking ? "Auswahl schließen" : "Anderes Match bestätigen"}
           </Button>
           <Button
             type="button"
@@ -279,33 +354,48 @@ function PickPanel({
             variant="outline"
             className="text-destructive"
             disabled={removing}
-            onClick={onRemove}
+            title="Das Match bleibt als Backup zurückgehalten und wird unter Aufnahmen freigegeben."
+            onClick={onRevoke}
           >
-            {removing ? "Wird entfernt…" : "Entfernen"}
+            {removing ? "Wird aufgehoben…" : "Bestätigung aufheben"}
           </Button>
         </div>
       ) : (
         <p className="text-[12.5px] text-muted-foreground">
-          Vergangene Spieltage lassen sich nicht mehr umwählen. Nur der VOD-Link
-          bleibt änderbar.
+          Vergangene Spieltage lassen sich nicht mehr umbestätigen. Nur der
+          VOD-Link bleibt änderbar.
         </p>
       )}
     </div>
   );
 }
 
+// The week's pairings. What a row does depends on where the week stands: while
+// candidates are being collected it nominates (the first one becomes the
+// Hauptkandidat, the rest backups), and once the week is decided — or a match
+// is out of reach for a hold, which is the backfill case — it confirms
+// directly.
 function Picker({
   week,
+  currentRound,
+  hasPrimary,
   pendingId,
-  onPick,
+  onNominate,
+  onConfirm,
 }: {
   week: MotwWeek;
+  currentRound: number | null;
+  hasPrimary: boolean;
   pendingId: string | null;
-  onPick: (matchId: string) => void;
+  onNominate: (matchId: string, role: MotwRole) => void;
+  onConfirm: (matchId: string) => void;
 }) {
   const tiers = useMemo(
-    () =>
-      [...new Set(week.candidates.map((c) => c.tier))].sort((a, b) => a - b),
+    () => [...new Set(week.options.map((o) => o.tier))].sort((a, b) => a - b),
+    [week.options],
+  );
+  const roleByMatch = useMemo(
+    () => new Map(week.candidates.map((c) => [c.option.matchId, c.role])),
     [week.candidates],
   );
   const [selectedTiers, setSelectedTiers] = useState(() =>
@@ -315,18 +405,18 @@ function Picker({
   const [recordableOnly, setRecordableOnly] = useState(false);
 
   const shown = useMemo(() => {
-    const filtered = week.candidates.filter(
-      (candidate) =>
-        selectedTiers.has(candidate.tier) &&
+    const filtered = week.options.filter(
+      (option) =>
+        selectedTiers.has(option.tier) &&
         // Only a definite "no" is hidden. An unknown is exactly the matchup
         // staff should chase up, not one to bury.
-        (!recordableOnly || recordability(candidate) !== "no"),
+        (!recordableOnly || recordability(option) !== "no"),
     );
-    return sortCandidates(filtered, sort);
-  }, [week.candidates, selectedTiers, recordableOnly, sort]);
+    return sortOptions(filtered, sort);
+  }, [week.options, selectedTiers, recordableOnly, sort]);
 
-  const unrecordable = week.candidates.filter(
-    (c) => recordability(c) === "no",
+  const unrecordable = week.options.filter(
+    (o) => recordability(o) === "no",
   ).length;
   const allSelected =
     tiers.length > 0 && tiers.every((tier) => selectedTiers.has(tier));
@@ -417,12 +507,12 @@ function Picker({
       </div>
 
       <span className="text-[12.5px] text-muted-foreground tabular-nums">
-        {shown.length} von {week.candidates.length} Matches
+        {shown.length} von {week.options.length} Matches
       </span>
 
       {shown.length === 0 ? (
         <p className="rounded-lg border px-4 py-3 text-[13px] text-muted-foreground">
-          {week.candidates.length === 0
+          {week.options.length === 0
             ? "Für diesen Spieltag liegen keine wählbaren Paarungen vor."
             : selectedTiers.size === 0
               ? "Keine Division ausgewählt."
@@ -430,20 +520,51 @@ function Picker({
         </p>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {shown.map((candidate) => (
-            <MotwCandidateRow
-              key={candidate.matchId}
-              candidate={candidate}
-              picked={candidate.matchId === week.selection?.matchId}
-              pending={pendingId === candidate.matchId}
-              disabled={pendingId !== null}
-              onPick={() => onPick(candidate.matchId)}
-            />
-          ))}
+          {shown.map((option) => {
+            const nominating =
+              week.selection === null && canNominate(option, currentRound);
+            return (
+              <MotwOptionRow
+                key={option.matchId}
+                option={option}
+                state={rowState(option, week, roleByMatch)}
+                actionLabel={
+                  nominating
+                    ? hasPrimary
+                      ? "Als Backup"
+                      : "Als Hauptmatch"
+                    : "Bestätigen"
+                }
+                pending={pendingId === option.matchId}
+                disabled={pendingId !== null}
+                onPick={() =>
+                  nominating
+                    ? onNominate(
+                        option.matchId,
+                        hasPrimary ? "backup" : "primary",
+                      )
+                    : onConfirm(option.matchId)
+                }
+              />
+            );
+          })}
         </div>
       )}
     </div>
   );
+}
+
+// What the row already is: the confirmed match, a nominated candidate, or
+// nothing yet.
+function rowState(
+  option: MotwOption,
+  week: MotwWeek,
+  roleByMatch: ReadonlyMap<string, MotwRole>,
+): "primary" | "backup" | "confirmed" | null {
+  if (option.matchId === week.selection?.matchId) {
+    return "confirmed";
+  }
+  return roleByMatch.get(option.matchId) ?? null;
 }
 
 function SortButton({

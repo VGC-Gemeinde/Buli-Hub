@@ -45,7 +45,11 @@ This applies to every YouTube CTA, VOD **Speichern**, and the urgent todo's
 
 Replaces the tinted-card block with a **dark navy billboard**, the only dark
 panel on the page. Placement unchanged: directly under the title row, **above
-the division switcher**, only while its round is the current Spieltag.
+the division switcher**. It features the **most recently confirmed** Match of
+the Week (`billboardSelection`), so while a new Spieltag runs undecided the
+block carries the previous week and switches the moment staff confirm
+(`docs/plans/motw-candidates.md`). The eyebrow's **Spieltag {n}** is what says
+which week is on screen.
 
 Container: `relative overflow-hidden rounded-xl bg-brand-blue text-white`,
 with the two signature elements inside:
@@ -180,9 +184,10 @@ sanctioned wide width, `DESIGN.md` §8.5), paged through the whole season. Which
 weeks are editable is a domain rule, not a view decision — see §5.6.
 Header: standard `SiteHeader` breadcrumb **Staff-Bereich / Match of the
 Week**. Page head: back link **← Staff-Bereich**, orange tick + `h1`
-**Match of the Week** (30px), intro line 14px muted: "Ein Match pro Spieltag,
-ligaweit über alle Divisionen. Der aktuelle und jeder kommende Spieltag lassen
-sich wählen; bei vergangenen bleibt der VOD-Link änderbar."
+**Match of the Week** (30px), intro line 14px muted naming the two steps the
+workspace has: per week a Hauptmatch plus backups are nominated (all held like
+recordings), and one of them is confirmed as the Match of the Week, until when
+the billboard keeps the previous week.
 
 The workspace opens on the round that needs work (`initialMotwRound`);
 `?spieltag=n` overrides it, which is how the dashboard todo deep-links.
@@ -199,16 +204,21 @@ colors, and a legend line below the strip (11.5px muted) spells them out:
 
 | State | Mark |
 |---|---|
-| Gewählt · VOD da | filled `size-[7px]` orange dot |
-| Gewählt · VOD fehlt | `border-[1.5px]` orange ring |
+| Bestätigt · VOD da | filled `size-[7px]` orange dot |
+| Bestätigt · VOD fehlt | `border-[1.5px]` orange ring |
+| Kandidaten · nicht bestätigt | `size-[7px] rotate-45 border-[1.5px] border-current` diamond |
 | Offen | `h-[2px] w-2.5` dash at 30% |
+
+The diamond inherits the chip's color rather than taking navy: the open chip is
+navy itself, and a navy mark would disappear on it.
 
 Open week: `border-brand-blue bg-brand-blue text-white`. Current Spieltag:
 `border-brand-orange/70`, or `ring-2 ring-brand-orange ring-offset-2` when it is
 also the open one. Each chip carries a `title` naming its state.
 
-This strip replaced the former "Frühere Spieltage" list — the VOD-fehlt ring is
-what surfaced that open task, without a second list to work through.
+This strip replaced the former "Frühere Spieltage" list — the VOD-fehlt ring and
+the undecided diamond are what surface those open tasks, without a second list
+to work through.
 
 ### 5.2 Week head
 
@@ -219,31 +229,70 @@ Hand-rolled to `SectionHeader` anatomy (tick M + 24px condensed `h2` +
 Woche** / **Vergangen** neutral. Dates right-aligned, 13px muted tabular. A past
 week's tick is `neutral`, not orange.
 
-### 5.3 Pick panel
+### 5.3 Confirmed panel (`motw-manager.tsx`)
 
 `rounded-xl border border-brand-orange/40 bg-brand-orange/5 px-6 py-5`, the
 billboard's broadcast anatomy at reading scale so the staff view and the public
 block read as the same object:
 
-- Meta row: **Gewählt** badge (§1.1) · `DIV 2C` · `gemeldet` chip when reported
-  · `nicht aufnehmbar` chip when neither player has a capture card ·
+- Meta row: **Bestätigt** badge (§1.1) · `DIV 2C` · `gemeldet` chip when
+  reported · `nicht aufnehmbar` chip when neither player has a capture card ·
   **Zum Match →** at `ml-auto`.
 - Matchup `grid-cols-[1fr_auto_1fr]`, `mx-auto max-w-[640px]` — at full panel
   width the avatars strand themselves at the edges and it stops reading as one
   unit. Names `font-heading` 22px uppercase, `PlayerLink`ed.
 - VOD field above a `border-brand-orange/25` divider (§5.5).
-- Actions (editable weeks only): outline **Anderes Match wählen** (label flips
-  to **Auswahl schließen**) and outline **Entfernen** in destructive text. A
-  settled past week shows the sentence "Vergangene Spieltage lassen sich nicht
-  mehr umwählen — nur der VOD-Link bleibt änderbar." instead.
+- Actions (editable weeks only): outline **Anderes Match bestätigen** (label
+  flips to **Auswahl schließen**) and outline **Bestätigung aufheben** in
+  destructive text, whose `title` says what happens: the match stays withheld
+  as a backup and is released under Aufnahmen. A settled past week shows
+  "Vergangene Spieltage lassen sich nicht mehr umbestätigen. Nur der VOD-Link
+  bleibt änderbar." instead.
 
-**No pick**: one line above an open picker —
-`emphasisSurface("destructive")` when the running Spieltag is the unpicked one
-(matching the urgent todo card), quiet `border bg-muted/40` otherwise. A past
-week that was missed says so and offers the picker anyway ("…es lässt sich noch
-nachtragen."), because a finished week without a pick is still editable (§5.6).
+### 5.3a Kandidaten panel (`motw-candidate-panel.tsx`)
 
-### 5.4 Picker (`motw-candidate-row.tsx`, `motw-player.tsx`)
+The nominated matches of the week, in **navy, not orange**: a candidate is a
+recording, and orange stays reserved for the confirmed Match of the Week.
+Container `rounded-xl border bg-muted/25 px-6 py-5`, head: navy tick pill
+**Kandidaten** (**Weitere Kandidaten** once the week is confirmed) · count ·
+outline **Kandidat hinzufügen** at `ml-auto`, which opens the picker.
+
+**Each candidate is a small pick panel**, not a list row: the confirmed panel's
+anatomy (§5.3) at list scale, in a `rounded-lg border px-4 py-3` card with
+`gap-3`. The Hauptmatch carries the navy edge and tint
+(`border-brand-blue/45 bg-brand-blue/[0.04]`), the backups the plain border.
+
+1. **Meta line**: role chip · `DIV 1A` · the row marker (§5.4) · **Zum Match →**
+   at `ml-auto`. The role chip is static, never a control: **Hauptmatch** as a
+   navy fill with a filled `Star`, **Backup** as an outlined muted pill.
+   Promoting is a labelled button below — a chip that is clickable on some rows
+   and inert on others is the worse affordance.
+2. **Matchup**: `grid-cols-[1fr_auto_1fr]`, `mx-auto max-w-[640px]`, players at
+   `MotwSide` size `sm`, centered **vs.** — capped for the same reason as the
+   confirmed panel.
+3. **Action bar**: `border-t pt-3`, `flex flex-wrap gap-2` — filled orange
+   **✓ Bestätigen** (the decision this panel exists for), outline **★ Zum
+   Hauptmatch** on backups only, and outline **Entfernen** in destructive text
+   pushed to `sm:ml-auto`, away from the two constructive ones. Its `title`
+   says what it does not do: the match stays withheld for the stream.
+
+The actions get their own line on purpose. Sharing the picker's trailing cell
+with them left three controls fighting over 236px, wrapped across two lines and
+with the two secondary ones as ghost buttons that did not read as buttons at
+all. A settled week (not `editable`) drops the bar and the cards are pure
+information.
+
+**No confirmation yet**: one line above the panel —
+`emphasisSurface("destructive")` once the Spieltag is over ("Dieser Spieltag ist
+vorbei. Bitte bestätigen, welches Match das Match of the Week war. Bis dahin
+wird weiter das Match der Vorwoche beworben."), quiet `border bg-muted/40`
+while it runs.
+
+**Nothing at all**: the same two surfaces, with the empty-state copy (running
+week without candidates = destructive, a missed past week says it can still be
+backfilled) above an open picker.
+
+### 5.4 Picker (`motw-option-row.tsx`, `motw-player.tsx`)
 
 Toolbar, left: the **division** filter — **Alle** · a 1px `bg-border` divider ·
 **Division 1 … Division n**. The division chips **combine** (they are not
@@ -270,8 +319,9 @@ Below the toolbar a count line "{n} von {m} Matches". The list scrolls with the
 page — a nested scroll area fights the filters that make the list short in the
 first place. With nothing selected the list reads "Keine Division ausgewählt."
 
-Row = one `<button>` (picking means scanning; hunting a small trailing button
-per candidate is the slow way), `grid-cols-[60px_1fr_auto_1fr_236px]`. The
+Row = one `<button>` (working through a week means scanning; hunting a small
+trailing button per row is the slow way), `grid-cols-[60px_1fr_auto_1fr_236px]`.
+The
 trailing column is **fixed, not `auto`** — markers appear on some rows only and
 an `auto` width would shift the avatar columns row to row.
 
@@ -280,7 +330,7 @@ an `auto` width would shift the avatar columns row to row.
   meeting in the middle, so the two placement chips of a matchup sit next to
   each other and scan straight down the list. Name 16px semibold; below it
   `#{rank}` in a `rounded-md bg-muted` bold tabular chip and the `4–1` record
-  (both 15px, 16px in the pick panel), then the capture-card mark. No game
+  (both 15px, 16px in the confirmed panel), then the capture-card mark. No game
   differential — table detail that does not change which matchup is worth
   featuring, and it crowded the line.
 - **Capture card**, three states as three *shapes*, never color alone, each
@@ -295,10 +345,15 @@ an `auto` width would shift the avatar columns row to row.
   (`border-destructive/45 text-destructive`), **Capture Card unklar**
   (`border-brand-orange/55`, at least one profile untouched), **gemeldet**
   (`border-border` muted).
-- Trailing affordance: bordered **Wählen**, filling
-  `group-hover:bg-brand-orange group-hover:text-white` with the row. The picked
-  row is non-interactive **✓ Gewählt** (`border-brand-orange/55
-  bg-brand-orange/12`) and the row itself takes the orange tint.
+- Trailing affordance: bordered, filling `group-hover:bg-brand-orange
+  group-hover:text-white` with the row, and labelled with what the click does:
+  **Als Hauptmatch** while the week has none, **Als Backup** afterwards, and
+  **Bestätigen** once the week is decided or the match is out of reach for a
+  hold (reported, or a past Spieltag — the backfill path). A row that is
+  already in play is non-interactive and wears its state instead: **✓
+  Hauptmatch** / **✓ Backup** in navy (`border-brand-blue/45`, row tinted
+  navy), **✓ Bestätigt** in orange (`border-brand-orange/55
+  bg-brand-orange/12`, row tinted orange).
 
 Below `sm` the row stacks (group label + markers, then the two player lines,
 then the affordance) and all mirroring drops away.
@@ -315,21 +370,23 @@ no link, a 13px muted line under the field says what the link does:
 "Ergebnis gemeldet, noch nicht öffentlich. Mit dem VOD-Link wird es
 veröffentlicht und im Ergebniskanal gepostet."
 
-### 5.6 Which weeks are editable (`canSelectRound`)
+### 5.6 Which weeks are editable (`canSelectRound`, `canNominate`)
 
-The view never decides this; it renders `week.editable`, which mirrors the
-domain rule enforced in `actions.ts`:
+The view never decides this; it renders `week.editable` and asks `canNominate`
+per row. Both mirror domain rules enforced in `actions.ts`:
 
-| Week | Pick / replace / remove | VOD link |
-|---|---|---|
-| Running or later | yes | yes |
-| Past, no pick yet | **yes** — a missed week can be backfilled | yes |
-| Past, already picked | no | yes |
+| Week | Confirm / replace / revoke | Nominate | VOD link |
+|---|---|---|---|
+| Running or later | yes | yes, while the match is unreported | yes |
+| Past, unconfirmed | **yes** — a missed week can be backfilled | no | yes |
+| Past, confirmed | no | no | yes |
 
-A settled past week is left alone because re-picking it would flip spoiler
+A settled past week is left alone because re-confirming it would flip spoiler
 protection back onto an already-public result and make Discord delete and
-repost that week's messages. Backfilling a week that never had a pick has no
-such history to disturb.
+repost that week's messages. Backfilling a week that was never confirmed has no
+such history to disturb. Nominating stops at the running Spieltag for the
+recordings reason: a hold set on a finished week would be stale the moment it
+is set, and a reported match's result is already public.
 
 ## 6. Staff dashboard — todo + entry point (`motw-todo-card.tsx`, `staff/page.tsx`)
 
@@ -337,15 +394,21 @@ Placement as shipped: `SeasonStrip` → todo card → `SaisonDashboard`, gap-4.5
 
 - **SeasonStrip**: keeps the permanent **Match of the Week** outline button
   (entry point once the todo is gone) — no visual change.
-- **Warning** (next round unpicked): `rounded-lg border border-brand-
-  orange/40 bg-brand-orange/5 px-5 py-4`, title 14.5px semibold **Match of
-  the Week für Spieltag {n} wählen**, sub 13px muted "Der nächste Spieltag
-  hat noch kein Match of the Week.", trailing outline button
+- **Warning** (next round without candidates): `rounded-lg border border-brand-
+  orange/40 bg-brand-orange/5 px-5 py-4`, title 14.5px semibold **Kandidaten
+  für Spieltag {n} wählen**, sub 13px muted "Der nächste Spieltag hat noch
+  keine Kandidaten für das Match of the Week.", trailing outline button
   `border-brand-orange/50` **Jetzt wählen** → `/staff/motw`.
-- **Urgent** (current round unpicked, replaces the warning):
-  `border-destructive/45 bg-destructive/5`, title in `text-destructive`,
-  sub "Der aktuelle Spieltag läuft noch ohne Match of the Week.", button
-  primary (orange, **white text**) **Jetzt wählen**.
+- **Urgent, nominate** (current round without candidates, replaces the
+  warning): `border-destructive/45 bg-destructive/5`, title in
+  `text-destructive`, sub "Der aktuelle Spieltag läuft noch ohne Kandidaten für
+  das Match of the Week.", button primary (orange, **white text**) **Jetzt
+  wählen**.
+- **Urgent, confirm** (a finished week with candidates and no decision, which
+  outranks both): same destructive surface, title **Match of the Week für
+  Spieltag {n} bestätigen**, sub "Der Spieltag ist vorbei und die Kandidaten
+  sind noch nicht entschieden. Solange wird weiter das Match der Vorwoche
+  beworben.", button **Jetzt bestätigen**.
 - Purely informational — never blocks pairings or anything else (unchanged).
 
 ## 7. Checklist
@@ -358,15 +421,17 @@ Placement as shipped: `SeasonStrip` → todo card → `SaisonDashboard`, gap-4.5
    winner bolding there (§3)
 4. `motw-match-banner.tsx` / `motw-spoiler.tsx`: banner + cover styling,
    **Wieder verdecken** link on the revealed summary (§4)
-5. `motw-manager.tsx` + `motw-week-pager.tsx` + `motw-candidate-row.tsx` +
-   `motw-player.tsx` + `motw-vod-field.tsx`: season pager with shape marks,
-   week head chips, pick panel, picker rows with placement/record/capture
-   card, sort + filters, ✓ Gewählt state, VOD field (§5)
+5. `motw-manager.tsx` + `motw-week-pager.tsx` + `motw-candidate-panel.tsx` +
+   `motw-option-row.tsx` + `motw-player.tsx` + `motw-vod-field.tsx`: season
+   pager with shape marks, week head chips, Kandidaten panel, confirmed panel,
+   picker rows with placement/record/capture card, sort + filters, state
+   labels, VOD field (§5)
 6. `motw-todo-card.tsx`: variants per §6; orange buttons white text
    throughout (§1.2)
 7. `/dev/ui` gallery: billboard (unplayed / covered / revealed ×
-   with/without VOD), MotW match row, banner, spoiler cover, workspace in
-   three weeks (current picked / future unpicked / past), todo both
-   urgencies
+   with/without VOD, plus the carried-over week), MotW match row, banner,
+   spoiler cover, workspace in six weeks (missed past / settled past /
+   undecided past / running confirmed / future nominated / future empty),
+   todo in all three variants
 8. Verify both modes, `npx biome check --write .`, `npx tsc --noEmit`,
    `npm test -- --run`

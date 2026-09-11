@@ -638,6 +638,7 @@ describe("findMotw", () => {
       divisionStandings: null,
       divisionZones: null,
       divisionGroupLabels: null,
+      withheldResults: 0,
       groups: [
         {
           subDivisionId: "sd1",
@@ -646,6 +647,7 @@ describe("findMotw", () => {
           standings: [standing("c", 1), standing("a", 4)],
           zones: null,
           matches: [match("m1", "b"), match("m2", "c")],
+          withheldResults: 0,
         },
       ],
     },

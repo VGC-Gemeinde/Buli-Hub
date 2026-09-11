@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { computeStandings } from "../reporting/standings";
+import {
+  computeStandings,
+  type ResultForStandings,
+} from "../reporting/standings";
 import {
   decidedByDrop,
   dropBannerText,
@@ -7,7 +10,8 @@ import {
   effectiveResult,
 } from "./drops";
 
-const base: EffectiveResultInput = {
+const base: ResultForStandings = {
+  matchId: "m-a",
   playerAId: "a",
   playerBId: "b",
   outcome: "normal",
@@ -86,11 +90,12 @@ describe("standings with the override", () => {
   ];
   // Round robin: a beat b 2:1; a vs c and b vs c unreported. Then c drops? No —
   // drop b: their played win/loss history stops counting as played.
-  const results: EffectiveResultInput[] = [
+  const results: ResultForStandings[] = [
     base, // a 2:1 b (a won)
     { ...base, playerBId: "c", outcome: null, winnerId: null, games: [] }, // a–c open
     {
       ...base,
+      matchId: "m-b",
       playerAId: "b",
       playerBId: "c",
       outcome: null,

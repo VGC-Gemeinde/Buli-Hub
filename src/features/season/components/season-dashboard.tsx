@@ -445,6 +445,8 @@ export function InSeasonDashboard({
   divisionGroupLabels,
   defaultScope,
   meId,
+  groupWithheld,
+  divisionWithheld,
   today,
   seasonNumber,
 }: {
@@ -462,6 +464,10 @@ export function InSeasonDashboard({
   divisionGroupLabels?: Map<string, string>;
   defaultScope: "group" | "division";
   meId: string;
+  // Embargoed results that do not count in the tables yet
+  // (docs/plans/standings-embargo.md).
+  groupWithheld?: number;
+  divisionWithheld?: number;
   today: string;
   seasonNumber: number;
 }) {
@@ -504,6 +510,8 @@ export function InSeasonDashboard({
             divisionGroupLabels={divisionGroupLabels}
             defaultScope={defaultScope}
             meId={meId}
+            groupWithheld={groupWithheld}
+            divisionWithheld={divisionWithheld}
           />
           <RegelwerkCard seasonNumber={seasonNumber} />
         </section>

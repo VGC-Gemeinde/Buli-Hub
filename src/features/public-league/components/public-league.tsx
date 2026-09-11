@@ -213,12 +213,14 @@ function DivisionView({
               meId={meId}
               zones={division.divisionZones ?? undefined}
               groupLabels={division.divisionGroupLabels ?? undefined}
+              withheld={division.withheldResults}
             />
           ) : group ? (
             <StandingsTable
               standings={group.standings}
               meId={meId}
               zones={group.zones ?? undefined}
+              withheld={group.withheldResults}
             />
           ) : null}
         </section>

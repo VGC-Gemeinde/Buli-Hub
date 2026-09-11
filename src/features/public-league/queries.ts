@@ -36,9 +36,11 @@ import {
   subDivisionShortName,
 } from "@/features/seeding/seeding";
 import {
+  publicEmbargoedIds,
   type ResultEmbargo,
   resultEmbargo,
   withholdScore,
+  withoutEmbargoed,
 } from "@/features/spoilers/embargo";
 import { seasonName } from "@/features/staff/registration-window";
 import { PLAYER_NAME_FALLBACK } from "@/lib/player-name";
@@ -81,6 +83,10 @@ export type PublicGroup = {
   standings: StandingsRow[];
   zones: ZoneByUser | null; // set only in sub_division mode
   matches: PublicMatch[]; // every round's matches; the view filters by round
+  // Results of this group the public may not see yet, and which therefore do
+  // not count in the table (docs/plans/standings-embargo.md). The table says
+  // so rather than looking wrong.
+  withheldResults: number;
 };
 
 export type PublicDivision = {
@@ -93,6 +99,8 @@ export type PublicDivision = {
   divisionZones: ZoneByUser | null;
   divisionGroupLabels: Map<string, string> | null;
   groups: PublicGroup[];
+  // Withheld results across the whole division, for the Gesamttabelle's note.
+  withheldResults: number;
 };
 
 export type PublicOverview = {
@@ -160,6 +168,7 @@ export async function publicLeagueOverview(
   const embargoes: EmbargoSources = {
     motwByMatchId: new Map(motwSelections.map((s) => [s.matchId, s])),
     heldIds: new Set(holds.map((h) => h.matchId)),
+    publicIds: publicEmbargoedIds({ motw: motwSelections, holds }),
   };
   const divisions = await Promise.all(
     [...configs]
@@ -184,10 +193,13 @@ export async function publicLeagueOverview(
 }
 
 // What decides a row's embargo: the season's MotW picks and its recording
-// holds, both keyed by match id.
+// holds, both keyed by match id. `publicIds` is the same rule collapsed to the
+// matches no public viewer may see, which is what the tables drop from their
+// input (docs/plans/standings-embargo.md).
 type EmbargoSources = {
   motwByMatchId: ReadonlyMap<string, MotwSelectionLite>;
   heldIds: ReadonlySet<string>;
+  publicIds: ReadonlySet<string>;
 };
 
 async function buildDivision(
@@ -200,9 +212,23 @@ async function buildDivision(
   const counts = zoneCounts(config);
   const mode = config.relevantTable;
 
+  // The public table counts public results only: a withheld result would give
+  // itself away through both players' wins and losses
+  // (docs/plans/standings-embargo.md). Same input for every viewer, because a
+  // table is an aggregate about everyone, not a row about one match.
+  const publicGroups = groups.map((group) => ({
+    ...group,
+    results: withoutEmbargoed(group.results, embargoes.publicIds),
+  }));
+  const withheldByGroup = groups.map(
+    (group, index) => group.results.length - publicGroups[index].results.length,
+  );
+  const withheldResults = withheldByGroup.reduce((a, b) => a + b, 0);
+
   // The merged Gesamttabelle is shown only when it is the relevant table — i.e.
   // in division mode, where it decides promotion/relegation and carries the zones.
-  const mergedRaw = mode === "division" ? divisionStandings(groups) : null;
+  const mergedRaw =
+    mode === "division" ? divisionStandings(publicGroups) : null;
   const merged = mergedRaw ? markDropped(mergedRaw, droppedIds) : null;
   const divisionZones = merged ? zoneMap(merged, counts) : null;
   const divisionGroupLabels = merged
@@ -219,8 +245,8 @@ async function buildDivision(
       )
     : null;
 
-  const publicGroups = await Promise.all(
-    groups.map((group) =>
+  const built = await Promise.all(
+    publicGroups.map((group, index) =>
       buildGroup(
         config.tier,
         group,
@@ -229,6 +255,7 @@ async function buildDivision(
         embargoes,
         droppedIds,
         viewer,
+        withheldByGroup[index],
       ),
     ),
   );
@@ -240,18 +267,22 @@ async function buildDivision(
     divisionStandings: merged,
     divisionZones,
     divisionGroupLabels,
-    groups: publicGroups,
+    groups: built,
+    withheldResults,
   };
 }
 
 async function buildGroup(
   tier: number,
+  // Already stripped of the results the public may not see, so the table below
+  // counts only what is public.
   group: Awaited<ReturnType<typeof divisionGroups>>[number],
   mode: "sub_division" | "division",
   counts: ReturnType<typeof zoneCounts>,
   embargoes: EmbargoSources,
   droppedIds: ReadonlySet<string>,
   viewer: OverviewViewer,
+  withheldResults: number,
 ): Promise<PublicGroup> {
   const standings = markDropped(
     computeStandings({ roster: group.roster, results: group.results }),
@@ -275,6 +306,7 @@ async function buildGroup(
     standings,
     zones,
     matches,
+    withheldResults,
   };
 }
 

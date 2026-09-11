@@ -31,6 +31,9 @@ export type StandingsRow = {
 };
 
 export type ResultForStandings = {
+  // The match this result belongs to, so an aggregate can drop the ones the
+  // public may not see (docs/plans/standings-embargo.md).
+  matchId: string;
   playerAId: string;
   playerBId: string | null; // null = bye
   outcome: MatchOutcome | null; // null = unreported

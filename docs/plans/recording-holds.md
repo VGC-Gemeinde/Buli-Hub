@@ -145,8 +145,10 @@ copy talks about the "Stream" ("Ergebnis folgt nach dem Stream").
 
 **Out:**
 
-- **Standings include the result immediately**, the accepted leak the MotW
-  embargo documents. An aggregate cannot hide one row.
+- **The standings**, which are their own slice
+  (`docs/plans/standings-embargo.md`): a held result does not count in the
+  public table, because an aggregate that counts it gives the result away
+  through both players' wins and losses.
 - The participants' own rows on `/spieler`: as with the MotW, the match page
   they link to carries the notice.
 - Attaching a stream or VOD link to a hold. Releasing is the whole

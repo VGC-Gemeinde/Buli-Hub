@@ -29,7 +29,7 @@ jobs:
       contents: read
       id-token: write # Workload Identity Federation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Same reason as the refresh workflow: the runner ships PostgreSQL 16 and
       # /usr/bin/pg_dump is Debian's pg_wrapper, which dispatches to the default

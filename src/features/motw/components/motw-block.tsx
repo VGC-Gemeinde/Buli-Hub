@@ -11,16 +11,17 @@ import type { MotwBlockData } from "../motw";
 
 // The Match-of-the-Week billboard on the public overview (design/
 // MATCH-OF-THE-WEEK.md §2): the league's one editorial moment per week, the
-// only dark panel on the page. Shown only while its round is the current
-// Spieltag. Before the VOD the result is withheld from the public (the row
-// carries no score — `embargo`); staff and participants get the reveal
-// with a "not public yet" marker. After the VOD the result stays behind a
-// click-to-reveal so visitors can watch first (client-side reveal — a
+// only dark panel on the page. It features the most recently confirmed match,
+// so while a new Spieltag runs unconfirmed it carries the previous week
+// (docs/plans/motw-candidates.md). Before the VOD the result is withheld from
+// the public (the row carries no score — `embargo`); staff and participants
+// get the reveal with a "not public yet" marker. After the VOD it stays behind
+// a click-to-reveal so visitors can watch first (client-side reveal — a
 // courtesy spoiler tag, not security). Desktop is the A · state · B
 // broadcast row; mobile stacks the players with the state box between them.
 export function MotwBlock({ motw }: { motw: MotwBlockData }) {
   const [revealed, setRevealed] = useState(false);
-  const { match, groupName, youtubeUrl } = motw;
+  const { match, groupName, youtubeUrl, isCurrentRound } = motw;
   const embargo = match.embargo?.access ?? null;
   // findMotw never yields a bye; the guard keeps the types honest.
   if (match.playerB === null) {
@@ -65,7 +66,9 @@ export function MotwBlock({ motw }: { motw: MotwBlockData }) {
             {!match.reported ? (
               <>
                 <span className="whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-4 py-1.5 font-semibold text-[12px] uppercase tracking-[0.1em]">
-                  Läuft diese Woche
+                  {/* The block can carry a week that is already over: an
+                      overdue featured match must not claim to be running. */}
+                  {isCurrentRound ? "Läuft diese Woche" : "Noch nicht gespielt"}
                 </span>
                 <span className="text-[11.5px] text-white/55">Best of 3</span>
               </>

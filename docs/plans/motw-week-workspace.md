@@ -10,9 +10,11 @@ of both players at a glance. It replaced a two-column layout that showed the
 current and next Spieltag as cramped cards side by side, where a pick was a
 one-line `Name vs. Name` row with nothing to judge it by.
 
-Domain semantics of the MotW itself (one pick per `(window, round)`, permanent
-spoiler protection, Discord mirroring, VOD links) are unchanged by this slice.
-One domain rule did change: which rounds are pickable.
+Domain semantics of the MotW itself (one confirmed match per `(window, round)`,
+permanent spoiler protection, Discord mirroring, VOD links) are unchanged by
+this slice. One domain rule did change: which rounds are pickable. The
+candidates a week is decided between came later
+(`docs/plans/motw-candidates.md`).
 
 ## Scope
 
@@ -52,7 +54,7 @@ One domain rule did change: which rounds are pickable.
 
 ## Domain change — pickable rounds
 
-`canSelectRound({ round, currentRound, totalRounds, pickedRounds })` is the
+`canSelectRound({ round, currentRound, totalRounds, confirmedRounds })` is the
 rule; `selectableRounds` collects it into a set for the actions' gate and the
 week model:
 
@@ -70,28 +72,34 @@ Consequence worth knowing: because "settled" is decided by the pick existing, a
 backfilled past pick cannot be undone through the UI — the round closes the
 moment it is set.
 
-The gate lives in `actions.ts` (`selectMotw`, `removeMotw`), which now reads the
-window's selections to evaluate it. `saveMotwYoutubeUrl` gates on nothing, for
-every round. `motwTodo` is untouched — the nudge stays "current, else next".
+The gate lives in `actions.ts` (`confirmMotw`, `revokeMotw`), which reads the
+window's confirmations to evaluate it. `saveMotwYoutubeUrl` gates on nothing,
+for every round. The nomination of candidates has its own, narrower gate
+(`canNominate`, `docs/plans/motw-candidates.md`), and `motwTodo` nudges about
+both duties.
 
 ## Pure logic (`motw.ts`, unit-tested)
 
 - `canSelectRound(...)` / `selectableRounds(currentRound, totalRounds,
-  pickedRounds)` — the rule above.
+  confirmedRounds)` — the rule above.
 - `weekState(round, currentRound)` → `"past" | "current" | "future"`; `null`
   current round makes every round `"past"`.
-- `initialMotwRound({ totalRounds, currentRound, selectedRounds })` — the round
-  the workspace opens on: the current round if it has no pick, else the first
-  later round without one, else the current round. Outside a running season the
-  season's last round, where the remaining work (VOD links) sits. This is what
-  makes the workspace land on the week that needs work.
-- `sortCandidates(candidates, mode)` — `"division"` keeps the incoming
+- `initialMotwRound({ totalRounds, currentRound, confirmedRounds,
+  candidateRounds })` — the round the workspace opens on: a finished week whose
+  candidates were never confirmed first, else the current round unless it is
+  confirmed, else the first later round with nothing, else the current round.
+  Outside a running season the season's last round, where the remaining work
+  (VOD links) sits. This is what makes the workspace land on the week that
+  needs work.
+- `sortOptions(options, mode)` — `"division"` keeps the incoming
   tier/position order; `"rank"` sorts by combined placement (sum of both ranks,
   ascending), players without a rank last, ties broken by the division order so
   the result is stable.
-- `buildMotwWeeks({ matchdays, currentRound, selections, candidates })` — the
-  assembly: one `MotwWeek` per matchday with its state, dates, candidate list
-  and resolved selection (the picked candidate object, not just its id).
+- `buildMotwWeeks({ matchdays, currentRound, selections, options, holds })` —
+  the assembly: one `MotwWeek` per matchday with its state, dates, pickable
+  options, nominated candidates (`weekCandidates`,
+  `docs/plans/motw-candidates.md`) and resolved confirmation (the confirmed
+  option object, not just its id).
 
 Types:
 
@@ -105,7 +113,7 @@ export type MotwPlayer = Identity & {
   dropped: boolean;
 };
 
-export type MotwCandidate = {
+export type MotwOption = {
   matchId: string;
   round: number;
   tier: number;             // division, for the filter
@@ -115,24 +123,28 @@ export type MotwCandidate = {
   reported: boolean;        // staff-only marker; a played week is still pickable
 };
 
+// A nominated match of the week, on top of the pickable options.
+export type MotwCandidate = { option: MotwOption; role: "primary" | "backup" };
+
 export type MotwWeek = {
   round: number;
   state: "past" | "current" | "future";
   startsOn: string;
   endsOn: string;
+  options: MotwOption[];
   candidates: MotwCandidate[];
   selection: { matchId: string; youtubeUrl: string | null } | null;
-  selectedMatch: MotwCandidate | null;
+  selectedMatch: MotwOption | null;
   editable: boolean;        // mirrors canSelectRound
 };
 ```
 
 `selectedMatch` is null while `selection` is set only for an inconsistent row
-(the pick points at a match that is no longer a candidate, e.g. a participant
+(the confirmation points at a match that is no longer an option, e.g. a participant
 dropped afterwards); the view keeps the panel, the VOD field and the link, and
 says so in place of the matchup.
 
-`recordability(candidate)` → `"yes" | "no" | "unknown"` — whether the match can
+`recordability(option)` → `"yes" | "no" | "unknown"` — whether the match can
 produce a VOD at all. **"unknown" is its own answer, not a soft "no":** a player
 who never saved their profile carries `hasCaptureCard: false` by default, which
 says nothing about whether they own one. Staff need that difference so they can
@@ -183,7 +195,7 @@ Visual spec of record: `design/MATCH-OF-THE-WEEK.md` §5. In short:
   its state, chevrons, legend.
 - **Week panel** (`motw-manager.tsx`) — head with state chip, then the pick
   panel or the appropriate empty state, then the picker.
-- **Picker** (`motw-candidate-row.tsx`, `motw-player.tsx`) — full-row buttons,
+- **Picker** (`motw-option-row.tsx`, `motw-player.tsx`) — full-row buttons,
   players mirrored around a centered "vs.", placement/record/capture-card per
   player, one marker per row, division filter + Division/Platzierung sort +
   "Nur aufnehmbar".

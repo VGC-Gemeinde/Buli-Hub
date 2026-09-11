@@ -48,7 +48,9 @@ import { MotwTodoCard } from "@/features/motw/components/motw-todo-card";
 import type {
   MotwBlockData,
   MotwCandidate,
+  MotwOption,
   MotwPlayer,
+  MotwRole,
   MotwWeek,
 } from "@/features/motw/motw";
 import { ProfileSpielplan } from "@/features/player-profile/components/profile-schedule";
@@ -772,6 +774,13 @@ const MOTW_WITH_VOD: MotwBlockData = {
   youtubeUrl: "https://www.youtube.com/watch?v=vgc-bundesliga",
   rankA: 1,
   rankB: 4,
+  isCurrentRound: true,
+};
+// The block carries the previous week until the running one is confirmed
+// (docs/plans/motw-candidates.md).
+const MOTW_CARRIED: MotwBlockData = {
+  ...MOTW_WITH_VOD,
+  isCurrentRound: false,
 };
 const MOTW_WITHHELD: MotwBlockData = {
   ...MOTW_WITH_VOD,
@@ -790,6 +799,7 @@ const MOTW_PREVIEW: MotwBlockData = {
   youtubeUrl: null,
 };
 const MOTW_OPEN: MotwBlockData = {
+  isCurrentRound: true,
   match: {
     ...MOTW_MATCH,
     reported: false,
@@ -848,6 +858,7 @@ function recordingMatch(
     pendingFreeWin: false,
     decidedByDrop: false,
     held: false,
+    motwRole: null,
     endsOn: `2026-09-${String(6 + round * 7).padStart(2, "0")}`,
     ...extra,
   };
@@ -861,9 +872,12 @@ const RECORDING_HELD: HeldMatch[] = [
     stale: true,
   },
   {
+    // A backup for the Match of the Week: held like any recording, and the
+    // chip says a release takes it out of that race too.
     ...recordingMatch("rh2", 3, "Division 2a", "Pawmo", "Toedscool", {
       held: true,
       reported: true,
+      motwRole: "backup",
     }),
     stale: false,
   },
@@ -933,14 +947,14 @@ function motwPlayer(
   };
 }
 
-function motwCandidate(
+function motwOption(
   round: number,
   index: number,
   groupName: string,
   playerA: MotwPlayer,
   playerB: MotwPlayer,
   reported = false,
-): MotwCandidate {
+): MotwOption {
   return {
     matchId: `wm${round}-${index}`,
     round,
@@ -952,9 +966,9 @@ function motwCandidate(
   };
 }
 
-function motwCandidates(round: number): MotwCandidate[] {
+function motwOptions(round: number): MotwOption[] {
   return [
-    motwCandidate(
+    motwOption(
       round,
       0,
       "Division 1a",
@@ -962,14 +976,14 @@ function motwCandidates(round: number): MotwCandidate[] {
       motwPlayer("Falinks", 2, 3, 1, true),
       true,
     ),
-    motwCandidate(
+    motwOption(
       round,
       1,
       "Division 1a",
       motwPlayer("Pawmi", 3, 2, 2, true),
       motwPlayer("Tinkatink", 8, 0, 4, false),
     ),
-    motwCandidate(
+    motwOption(
       round,
       2,
       "Division 1b",
@@ -978,7 +992,7 @@ function motwCandidates(round: number): MotwCandidate[] {
       motwPlayer("Blaubeerkuchenbäckermeisterin Annegret", 4, 2, 2, false),
       motwPlayer("Nico", 5, 2, 2, false, false, false),
     ),
-    motwCandidate(
+    motwOption(
       round,
       3,
       "Division 2a",
@@ -987,7 +1001,7 @@ function motwCandidates(round: number): MotwCandidate[] {
     ),
     // Division 3 sits outside the default filter (top two divisions), so the
     // gallery shows the "Alle"-toggle actually having something to add.
-    motwCandidate(
+    motwOption(
       round,
       4,
       "Division 3a",
@@ -997,16 +1011,28 @@ function motwCandidates(round: number): MotwCandidate[] {
   ];
 }
 
-// Every week state the workspace has: a past one that was missed (still
-// backfillable), a past one that is settled, the running week, and two open
-// future weeks.
+// One nominated match of a week, resolved against its options.
+function motwCandidate(
+  round: number,
+  index: number,
+  role: MotwRole,
+): MotwCandidate {
+  return { option: motwOptions(round)[index], role };
+}
+
+// Every week state the workspace has: a missed past week (still backfillable),
+// a settled one with a leftover backup, a finished week whose candidates were
+// never confirmed (the state that holds the billboard back), the running week
+// confirmed but without a VOD, a future week with a Hauptkandidat, and an
+// untouched future week.
 const MOTW_WEEKS: MotwWeek[] = [
   {
     round: 1,
     state: "past",
     startsOn: "2026-01-05",
     endsOn: "2026-01-11",
-    candidates: motwCandidates(1),
+    options: motwOptions(1),
+    candidates: [],
     selection: null,
     selectedMatch: null,
     editable: true,
@@ -1016,29 +1042,32 @@ const MOTW_WEEKS: MotwWeek[] = [
     state: "past",
     startsOn: "2026-01-12",
     endsOn: "2026-01-18",
-    candidates: motwCandidates(2),
+    options: motwOptions(2),
+    candidates: [motwCandidate(2, 2, "backup")],
     selection: { matchId: "wm2-1", youtubeUrl: "https://youtu.be/xK92dQvgc" },
-    selectedMatch: motwCandidates(2)[1],
+    selectedMatch: motwOptions(2)[1],
     editable: false,
   },
   {
     round: 3,
-    state: "current",
+    state: "past",
     startsOn: "2026-01-19",
     endsOn: "2026-01-25",
-    candidates: motwCandidates(3),
-    selection: { matchId: "wm3-0", youtubeUrl: null },
-    selectedMatch: motwCandidates(3)[0],
+    options: motwOptions(3),
+    candidates: [motwCandidate(3, 0, "primary"), motwCandidate(3, 1, "backup")],
+    selection: null,
+    selectedMatch: null,
     editable: true,
   },
   {
     round: 4,
-    state: "future",
+    state: "current",
     startsOn: "2026-01-26",
     endsOn: "2026-02-01",
-    candidates: motwCandidates(4),
-    selection: null,
-    selectedMatch: null,
+    options: motwOptions(4),
+    candidates: [motwCandidate(4, 3, "backup")],
+    selection: { matchId: "wm4-0", youtubeUrl: null },
+    selectedMatch: motwOptions(4)[0],
     editable: true,
   },
   {
@@ -1046,7 +1075,19 @@ const MOTW_WEEKS: MotwWeek[] = [
     state: "future",
     startsOn: "2026-02-02",
     endsOn: "2026-02-08",
-    candidates: motwCandidates(5),
+    options: motwOptions(5),
+    candidates: [motwCandidate(5, 1, "primary")],
+    selection: null,
+    selectedMatch: null,
+    editable: true,
+  },
+  {
+    round: 6,
+    state: "future",
+    startsOn: "2026-02-09",
+    endsOn: "2026-02-15",
+    options: motwOptions(6),
+    candidates: [],
     selection: null,
     selectedMatch: null,
     editable: true,
@@ -2104,17 +2145,26 @@ export function Gallery() {
         <Specimen label="Billboard — gemeldet, mit VOD: verdeckt (Klick deckt auf), VOD-Button">
           <MotwBlock motw={MOTW_WITH_VOD} />
         </Specimen>
-        <Specimen label="Staff-Workspace — aktuelle Woche gewählt, VOD fehlt (Aktionen ohne Staff-Login wirkungslos)">
-          <MotwManager weeks={MOTW_WEEKS} currentRound={3} initialRound={3} />
+        <Specimen label="Billboard — Vorwoche, die noch beworben wird, solange die laufende Woche nicht bestätigt ist">
+          <MotwBlock motw={MOTW_CARRIED} />
         </Specimen>
-        <Specimen label="Staff-Workspace — kommende Woche ohne Wahl (Picker offen: Divisionsfilter, Sortierung, Capture-Card-Filter, nicht aufnehmbare Paarung)">
-          <MotwManager weeks={MOTW_WEEKS} currentRound={3} initialRound={4} />
+        <Specimen label="Staff-Workspace — aktuelle Woche bestätigt, VOD fehlt, ein Backup bleibt zurückgehalten (Aktionen ohne Staff-Login wirkungslos)">
+          <MotwManager weeks={MOTW_WEEKS} currentRound={4} initialRound={4} />
         </Specimen>
-        <Specimen label="Staff-Workspace — vergangener Spieltag mit Wahl (nur VOD-Link änderbar)">
-          <MotwManager weeks={MOTW_WEEKS} currentRound={3} initialRound={2} />
+        <Specimen label="Staff-Workspace — vergangener Spieltag mit Kandidaten, aber ohne Bestätigung (hält das Billboard auf der Vorwoche)">
+          <MotwManager weeks={MOTW_WEEKS} currentRound={4} initialRound={3} />
         </Specimen>
-        <Specimen label="Staff-Workspace — vergangener Spieltag ohne Wahl (nachträglich wählbar)">
-          <MotwManager weeks={MOTW_WEEKS} currentRound={3} initialRound={1} />
+        <Specimen label="Staff-Workspace — kommende Woche mit Hauptmatch, weitere Kandidaten wählbar">
+          <MotwManager weeks={MOTW_WEEKS} currentRound={4} initialRound={5} />
+        </Specimen>
+        <Specimen label="Staff-Workspace — kommende Woche ohne Kandidaten (Picker offen: Divisionsfilter, Sortierung, Capture-Card-Filter, nicht aufnehmbare Paarung)">
+          <MotwManager weeks={MOTW_WEEKS} currentRound={4} initialRound={6} />
+        </Specimen>
+        <Specimen label="Staff-Workspace — vergangener Spieltag mit Bestätigung (nur VOD-Link änderbar)">
+          <MotwManager weeks={MOTW_WEEKS} currentRound={4} initialRound={2} />
+        </Specimen>
+        <Specimen label="Staff-Workspace — vergangener Spieltag ohne alles (nachträglich bestätigbar)">
+          <MotwManager weeks={MOTW_WEEKS} currentRound={4} initialRound={1} />
         </Specimen>
         <Specimen label="Match-Seite: Banner (ohne VOD · ohne VOD, Ergebnis noch nicht öffentlich · mit VOD)">
           <div className="flex flex-col">
@@ -2138,11 +2188,20 @@ export function Gallery() {
             spoilerMode="motw"
           />
         </Specimen>
-        <Specimen label="Staff-Todo — nächste Woche (Hinweis)">
-          <MotwTodoCard todo={{ round: 3, urgency: "warning" }} />
+        <Specimen label="Staff-Todo — nächste Woche ohne Kandidaten (Hinweis)">
+          <MotwTodoCard
+            todo={{ round: 3, kind: "nominate", urgency: "warning" }}
+          />
         </Specimen>
-        <Specimen label="Staff-Todo — aktuelle Woche (dringend)">
-          <MotwTodoCard todo={{ round: 2, urgency: "urgent" }} />
+        <Specimen label="Staff-Todo — aktuelle Woche ohne Kandidaten (dringend)">
+          <MotwTodoCard
+            todo={{ round: 2, kind: "nominate", urgency: "urgent" }}
+          />
+        </Specimen>
+        <Specimen label="Staff-Todo — vergangene Woche nicht bestätigt (dringend)">
+          <MotwTodoCard
+            todo={{ round: 2, kind: "confirm", urgency: "urgent" }}
+          />
         </Specimen>
       </section>
 

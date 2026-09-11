@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { MotwRole } from "@/features/motw/motw";
 import { toggleAllDivisions } from "@/features/motw/motw";
 import { PlayerLink } from "@/features/player-profile/components/player-link";
 import { PlayerAvatar } from "@/features/season/components/player-avatar";
@@ -142,6 +143,32 @@ function ChipEl({ chip }: { chip: StateChip }) {
   );
 }
 
+// A hold that is also in the running for the Match of the Week
+// (docs/plans/motw-candidates.md). Navy outline, not the league's orange: it
+// is a candidate, not the confirmed match. Releasing it here ends both the
+// hold and the candidacy, so the chip is what makes that visible.
+function MotwRoleChip({
+  role,
+  compact = false,
+}: {
+  role: MotwRole;
+  compact?: boolean;
+}) {
+  const primary = role === "primary";
+  return (
+    <span
+      title={
+        primary
+          ? "Geplantes Match of the Week dieser Woche. Eine Freigabe nimmt es aus der Auswahl."
+          : "Backup für das Match of the Week. Eine Freigabe nimmt es aus der Auswahl."
+      }
+      className="flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-brand-blue/45 px-2 py-[3px] font-semibold text-[11px] text-brand-blue leading-none dark:border-white/40 dark:text-white"
+    >
+      {compact ? "MotW" : primary ? "MotW-Hauptmatch" : "MotW-Backup"}
+    </span>
+  );
+}
+
 function Pairing({ match }: { match: RecordingMatch }) {
   return (
     <Link
@@ -195,6 +222,7 @@ function HeldRow({ match }: { match: HeldMatch }) {
         {match.stale ? (
           <ChipEl chip={{ label: "Spieltag vorbei", tone: "stale" }} />
         ) : null}
+        {match.motwRole ? <MotwRoleChip role={match.motwRole} /> : null}
         <ChipEl chip={chip} />
         <span className="shrink-0 text-[13px] text-muted-foreground tabular-nums sm:w-12 sm:text-right">
           {ddMM(match.endsOn)}
@@ -206,6 +234,7 @@ function HeldRow({ match }: { match: HeldMatch }) {
             <ReleaseDialog
               playerAName={match.playerA.name}
               playerBName={match.playerB.name}
+              motwRole={match.motwRole}
               onConfirm={release}
             />
           ) : (
@@ -233,11 +262,13 @@ function HeldRow({ match }: { match: HeldMatch }) {
 function ReleaseDialog({
   playerAName,
   playerBName,
+  motwRole,
   onConfirm,
   trigger,
 }: {
   playerAName: string;
   playerBName: string;
+  motwRole: MotwRole | null;
   onConfirm: () => Promise<{ ok: boolean; error?: string }>;
   // The picker uses the row's own state button as the trigger; the list uses
   // the plain button below.
@@ -275,6 +306,9 @@ function ReleaseDialog({
             {playerAName} vs. {playerBName}: Das Ergebnis wird sofort öffentlich
             und im Ergebniskanal gepostet. Das lässt sich nicht rückgängig
             machen.
+            {motwRole
+              ? " Das Match steht außerdem als Kandidat für das Match of the Week zur Wahl und scheidet damit aus."
+              : ""}
           </DialogDescription>
         </DialogHeader>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
@@ -609,15 +643,18 @@ function PickRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 items-center gap-x-3 gap-y-2.5 rounded-lg border px-3 py-2.5 sm:grid-cols-[60px_1fr_auto_1fr_200px] sm:py-2",
+        "grid grid-cols-1 items-center gap-x-3 gap-y-2.5 rounded-lg border px-3 py-2.5 sm:grid-cols-[74px_1fr_auto_1fr_200px] sm:py-2",
         match.held &&
           "border-brand-blue/45 bg-brand-blue/[0.04] dark:border-white/35 dark:bg-white/[0.05]",
         match.reported && !match.held && "opacity-60",
         busy && "opacity-55",
       )}
     >
-      <span className="whitespace-nowrap font-semibold text-[11px] text-muted-foreground uppercase tracking-[0.06em]">
-        {shortGroup(match.groupName)}
+      <span className="flex flex-wrap items-center gap-1.5 sm:flex-col sm:items-start sm:gap-1">
+        <span className="whitespace-nowrap font-semibold text-[11px] text-muted-foreground uppercase tracking-[0.06em]">
+          {shortGroup(match.groupName)}
+        </span>
+        {match.motwRole ? <MotwRoleChip role={match.motwRole} compact /> : null}
       </span>
       <Side player={match.playerA} align="left" />
       <span className="hidden text-[11.5px] text-muted-foreground/70 sm:block">
@@ -635,10 +672,12 @@ function PickRow({
             <ReleaseDialog
               playerAName={match.playerA.name}
               playerBName={match.playerB.name}
+              motwRole={match.motwRole}
               onConfirm={onRelease}
               trigger={(open) => (
                 <HoldButton
                   action="Freigeben"
+                  motwRole={match.motwRole}
                   pending={pending}
                   disabled={disabled}
                   onClick={open}
@@ -648,6 +687,7 @@ function PickRow({
           ) : (
             <HoldButton
               action="Entfernen"
+              motwRole={match.motwRole}
               pending={pending}
               disabled={disabled}
               onClick={onRelease}
@@ -690,19 +730,26 @@ function PickRow({
 // the action, so nothing depends on hovering.
 function HoldButton({
   action,
+  motwRole,
   pending,
   disabled,
   onClick,
 }: {
   action: "Entfernen" | "Freigeben";
+  motwRole: MotwRole | null;
   pending: boolean;
   disabled: boolean;
   onClick: () => void;
 }) {
-  const label =
+  const label = `${
     action === "Freigeben"
       ? "Ergebnis freigeben und Markierung entfernen"
-      : "Aufnahme-Markierung entfernen";
+      : "Aufnahme-Markierung entfernen"
+  }${
+    motwRole
+      ? ". Das Match scheidet damit aus der Wahl zum Match of the Week aus"
+      : ""
+  }`;
   return (
     <button
       type="button"

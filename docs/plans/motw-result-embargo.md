@@ -27,12 +27,19 @@ change. The rule itself is the shared result embargo
 (`src/features/spoilers/embargo.ts`), which the recording holds reuse with
 a second reason (`docs/plans/recording-holds.md`).
 
+The embargo starts when staff **confirm** the match as the Match of the Week
+(`docs/plans/motw-candidates.md`). Before that the match is a candidate, which
+is a recording hold: withheld all the same, under the recording reason and its
+copy. Confirming deletes the hold and this rule takes over without a gap, and a
+confirmation that is revoked or replaced puts the match back under a hold
+rather than publishing it.
+
 ## Scope
 
 **In:**
 
-- **Embargo rule** (pure): a match is under embargo while it is the MotW
-  *and* its pick has no YouTube link. Two viewer classes:
+- **Embargo rule** (pure): a match is under embargo while it is the confirmed
+  MotW *and* has no YouTube link. Two viewer classes:
   - **withheld**: guests, players not in the match. The result is not sent
     to the client at all: no score, no winner, no replays, no teamsheets, no
     game rows. They see that the match was played and that the result
@@ -65,7 +72,7 @@ a second reason (`docs/plans/recording-holds.md`).
     veröffentlicht."
 - **Player profile** (`/spieler/[userId]`, `ScheduleRow`): same pill rules
   as the overview; scores stripped server-side for withheld rows.
-- **Staff MotW workspace** (`/staff/motw`): the pick panel of a reported
+- **Staff MotW workspace** (`/staff/motw`): the confirmed panel of a reported
   week without VOD gets a one-line hint next to the VOD field: "Ergebnis
   gemeldet, noch nicht öffentlich. Mit dem VOD-Link wird es veröffentlicht
   und im Ergebniskanal gepostet." Attaching the link now has a consequence,
@@ -76,8 +83,8 @@ a second reason (`docs/plans/recording-holds.md`).
   header carries "· Match of the Week" so a post that lands a week late has
   its context. Order on attaching the link: VOD announcement first (MotW
   channel), then the result post. Clearing the link deletes the result post
-  again (the channels mirror the hub). Replacing the pick clears the URL,
-  so the new pick's result post is deleted by the existing sync call.
+  again (the channels mirror the hub). Replacing the confirmation clears the
+  URL, so the new match's result post is deleted by the existing sync call.
 - Dev tooling: gallery states, and the seed already produces the withheld
   case (MotW with result, without link).
 

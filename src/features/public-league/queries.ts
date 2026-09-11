@@ -1,6 +1,10 @@
 import { markDropped } from "@/features/drops/drops";
 import { droppedIdsForWindow } from "@/features/drops/queries";
-import { findMotw, type MotwBlockData } from "@/features/motw/motw";
+import {
+  billboardSelection,
+  findMotw,
+  type MotwBlockData,
+} from "@/features/motw/motw";
 import { motwForWindow } from "@/features/motw/queries";
 import { holdsForWindow } from "@/features/recordings/queries";
 import { scoreFor } from "@/features/reporting/match-state";
@@ -97,8 +101,9 @@ export type PublicOverview = {
   totalRounds: number;
   matchdays: MatchdayLite[];
   divisions: PublicDivision[];
-  // The current Spieltag's Match of the Week for the prominent block, or null
-  // (none picked / between rounds). Past picks only keep their row badge.
+  // The Match of the Week for the prominent block: the most recently confirmed
+  // one, which is last week's until the running week is confirmed. Null while
+  // the season has no confirmation at all. Older picks keep their row badge.
   motw: MotwBlockData | null;
 };
 
@@ -162,10 +167,11 @@ export async function publicLeagueOverview(
       .map((config) => buildDivision(config, embargoes, droppedIds, viewer)),
   );
 
-  // The prominent block features only the running Spieltag's pick.
-  const currentSelection =
-    motwSelections.find((s) => s.round === currentRound) ?? null;
-  const motw = currentSelection ? findMotw(divisions, currentSelection) : null;
+  // The prominent block features the most recently confirmed Match of the
+  // Week, so it carries last week's while the new week runs unconfirmed
+  // (docs/plans/motw-candidates.md).
+  const featured = billboardSelection(motwSelections, currentRound);
+  const motw = featured ? findMotw(divisions, featured, currentRound) : null;
 
   return {
     seasonName: seasonName(seasonNumber),

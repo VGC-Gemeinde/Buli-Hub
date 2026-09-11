@@ -4,11 +4,14 @@ import { emphasisSurface } from "@/lib/emphasis";
 import { cn } from "@/lib/utils";
 import type { MotwTodo } from "../motw";
 
-// The staff dashboard's MotW todo: a warning while next week has no pick yet,
-// escalating to the urgent variant when the running Spieltag has none. Purely
-// informational — nothing (pairings included) is blocked by it.
+// The staff dashboard's MotW todo (docs/plans/motw-candidates.md). Two duties
+// share one card: confirming a finished week whose candidates were never
+// decided — until that happens the billboard keeps advertising an older week —
+// and nominating candidates for a week that has none. Purely informational,
+// nothing (pairings included) is blocked by it.
 export function MotwTodoCard({ todo }: { todo: NonNullable<MotwTodo> }) {
   const urgent = todo.urgency === "urgent";
+  const confirming = todo.kind === "confirm";
   return (
     <div
       className={cn(
@@ -23,12 +26,16 @@ export function MotwTodoCard({ todo }: { todo: NonNullable<MotwTodo> }) {
             urgent && "text-destructive",
           )}
         >
-          Match of the Week für Spieltag {todo.round} wählen
+          {confirming
+            ? `Match of the Week für Spieltag ${todo.round} bestätigen`
+            : `Kandidaten für Spieltag ${todo.round} wählen`}
         </p>
         <p className="text-[13px] text-muted-foreground">
-          {urgent
-            ? "Der aktuelle Spieltag läuft noch ohne Match of the Week."
-            : "Der nächste Spieltag hat noch kein Match of the Week."}
+          {confirming
+            ? "Der Spieltag ist vorbei und die Kandidaten sind noch nicht entschieden. Solange wird weiter das Match der Vorwoche beworben."
+            : urgent
+              ? "Der aktuelle Spieltag läuft noch ohne Kandidaten für das Match of the Week."
+              : "Der nächste Spieltag hat noch keine Kandidaten für das Match of the Week."}
         </p>
       </div>
       <Button
@@ -37,9 +44,11 @@ export function MotwTodoCard({ todo }: { todo: NonNullable<MotwTodo> }) {
         variant={urgent ? "default" : "outline"}
         className={cn(!urgent && "border-brand-orange/50")}
       >
-        {/* Deep-link the workspace at the round the todo is about, so "Jetzt
-            wählen" opens on the week that needs the pick. */}
-        <Link href={`/staff/motw?spieltag=${todo.round}`}>Jetzt wählen</Link>
+        {/* Deep-link the workspace at the round the todo is about, so the
+            button opens on the week that needs the work. */}
+        <Link href={`/staff/motw?spieltag=${todo.round}`}>
+          {confirming ? "Jetzt bestätigen" : "Jetzt wählen"}
+        </Link>
       </Button>
     </div>
   );

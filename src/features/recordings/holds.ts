@@ -1,3 +1,4 @@
+import type { MotwRole } from "@/features/motw/motw";
 import type { Identity, MatchdayLite } from "@/features/season/dashboard";
 
 // A player as the recording workspace shows them: identity plus the picture
@@ -80,6 +81,10 @@ export type RecordingMatch = {
   pendingFreeWin: boolean;
   decidedByDrop: boolean;
   held: boolean;
+  // Set when the hold is also a Match-of-the-Week candidate
+  // (docs/plans/motw-candidates.md), so a release here is visibly a decision
+  // about the MotW too.
+  motwRole: MotwRole | null;
   endsOn: string | null;
 };
 

@@ -295,6 +295,7 @@ export async function groupResults(
     let entry = byMatch.get(row.matchId);
     if (!entry) {
       entry = {
+        matchId: row.matchId,
         playerAId: row.playerAId,
         playerBId: row.playerBId,
         outcome: row.outcome as MatchOutcome | null,

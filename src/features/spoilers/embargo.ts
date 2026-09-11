@@ -53,3 +53,46 @@ export function withholdScore<
 >(row: T): T {
   return { ...row, scoreA: null, scoreB: null, winnerId: null };
 }
+
+// --- Aggregates ------------------------------------------------------------
+
+// The matches whose result the public may not see right now
+// (docs/plans/standings-embargo.md). A match row can be shown to some viewers
+// and hidden from others, because it is about that one match; a table is an
+// aggregate about everyone and cannot hide a row without broadcasting it
+// through everyone's wins and losses. So the table drops these from its input
+// instead, for every viewer alike.
+//
+// The rule is `resultEmbargo` evaluated for a neutral viewer, so rows and
+// tables can never drift apart on what counts as withheld.
+export function publicEmbargoedIds(input: {
+  motw: readonly { matchId: string; youtubeUrl: string | null }[];
+  holds: readonly { matchId: string }[];
+}): Set<string> {
+  const ids = new Set<string>();
+  for (const selection of input.motw) {
+    const embargo = resultEmbargo({
+      motw: selection,
+      held: false,
+      isStaff: false,
+      isParticipant: false,
+    });
+    if (embargo) {
+      ids.add(selection.matchId);
+    }
+  }
+  for (const hold of input.holds) {
+    ids.add(hold.matchId);
+  }
+  return ids;
+}
+
+// Drops the embargoed results from a standings input. A withheld match is
+// absent, not present without a winner: a played match nobody won would
+// distort both records and still say the match is decided.
+export function withoutEmbargoed<T extends { matchId: string }>(
+  results: readonly T[],
+  embargoed: ReadonlySet<string>,
+): T[] {
+  return results.filter((result) => !embargoed.has(result.matchId));
+}

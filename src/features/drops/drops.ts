@@ -35,10 +35,13 @@ export function decidedByDrop(
 // for the opponent (standings default free wins to 2:0); both dropped →
 // double loss. Byes and matches without dropped participants pass through
 // unchanged, as does everything when nobody is dropped.
-export function effectiveResult(
-  input: EffectiveResultInput,
+// Generic in the caller's row type: the override rewrites the result fields
+// and carries everything else through, so a row that also knows its match id
+// (`ResultForStandings`) keeps it.
+export function effectiveResult<T extends EffectiveResultInput>(
+  input: T,
   droppedIds: ReadonlySet<string>,
-): EffectiveResultInput {
+): T {
   if (input.playerBId === null || !decidedByDrop(input, droppedIds)) {
     return input;
   }
@@ -46,8 +49,7 @@ export function effectiveResult(
   const bDropped = droppedIds.has(input.playerBId);
   if (aDropped && bDropped) {
     return {
-      playerAId: input.playerAId,
-      playerBId: input.playerBId,
+      ...input,
       outcome: "double_loss",
       winnerId: null,
       confirmedAt: DROP_CONFIRMED_AT,
@@ -55,8 +57,7 @@ export function effectiveResult(
     };
   }
   return {
-    playerAId: input.playerAId,
-    playerBId: input.playerBId,
+    ...input,
     outcome: "free_win",
     winnerId: aDropped ? input.playerBId : input.playerAId,
     confirmedAt: DROP_CONFIRMED_AT,

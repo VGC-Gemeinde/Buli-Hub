@@ -29,6 +29,10 @@ import {
 } from "@/features/season/queries";
 import { subDivisionName } from "@/features/seeding/seeding";
 import {
+  publicEmbargoedIds,
+  withoutEmbargoed,
+} from "@/features/spoilers/embargo";
+import {
   parseSpoilersOff,
   SPOILERS_OFF_COOKIE,
 } from "@/features/spoilers/spoilers";
@@ -95,9 +99,16 @@ export default async function PlayerProfilePage({
       holdsForWindow(window.id),
       droppedIdsForWindow(window.id),
     ]);
+    // The placement counts public results only, like every other table
+    // (docs/plans/standings-embargo.md).
     const rank =
-      computeStandings({ roster, results }).find((row) => row.userId === userId)
-        ?.rank ?? null;
+      computeStandings({
+        roster,
+        results: withoutEmbargoed(
+          results,
+          publicEmbargoedIds({ motw: motwSelections, holds }),
+        ),
+      }).find((row) => row.userId === userId)?.rank ?? null;
     const rows = profileScheduleRows({
       playerId: userId,
       viewerId: current?.userId ?? null,

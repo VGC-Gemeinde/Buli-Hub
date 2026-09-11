@@ -90,13 +90,11 @@ rather than publishing it.
 
 **Out:**
 
-- **Standings keep including the MotW result immediately.** The table is
-  an aggregate and cannot hide one row without becoming wrong for a week;
-  the public table would diverge from the staff table and jump when the
-  VOD lands. This is the documented accepted leak
-  (`docs/plans/match-of-the-week.md`) and stays so. Consequence: someone
-  reading W/L before and after the Spieltag can infer the MotW result. The
-  embargo covers the result itself, not arithmetic on the table.
+- **The standings.** They are covered by their own slice
+  (`docs/plans/standings-embargo.md`): an embargoed result does not count in
+  the public table, because wins and losses next to the Spielplan give the
+  whole result away. The rule here decides *whether* a result is embargoed;
+  what an aggregate does with that is written down there.
 - The Spieler-Dashboard's own-match rows: they show the participant's own
   score with no MotW marking today, and the match page they link to carries
   the "Noch nicht öffentlich" notice. No dashboard change.
@@ -223,10 +221,10 @@ All copy plain German, no em-dashes, straight quotes.
 
 ## Decisions
 
-- **Standings keep the result.** The table is an aggregate; withholding one
-  row would make the public table knowingly wrong for a week and jump when
-  the VOD lands. The embargo covers the result itself, not arithmetic on
-  the table (the same accepted leak as before this feature).
+- **The embargo is about the result, the table follows separately.** This
+  slice decides which results are withheld. What an aggregate does with that
+  is `docs/plans/standings-embargo.md`: the public table does not count them,
+  because wins and losses next to the Spielplan give the result away.
 - **The result post is a normal result post.** Once the VOD is live, the
   MotW result goes into the division's results channel like any other
   match, right after the VOD announcement in the MotW channel. Before this

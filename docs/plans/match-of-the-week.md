@@ -70,8 +70,10 @@ Rudimentary-but-intentional design; hand-off + design pass come later.
   neutral viewers get the inline-masked result page with the MotW notice
   copy (participants and staff see everything, as today). Reveal state is
   client-side only — the score is in the payload; this is a courtesy
-  spoiler tag, not security. The standings include the result immediately
-  (accepted leak, also during the embargo).
+  spoiler tag, not security. While the result is under embargo it does not
+  count in the public table either (`docs/plans/standings-embargo.md`): an
+  aggregate that counts it hands the result to anyone who compares it with
+  the Spielplan.
 
 **Out (deferred):**
 - MotW history/archive page.

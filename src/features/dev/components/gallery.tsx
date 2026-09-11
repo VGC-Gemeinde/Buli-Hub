@@ -1117,6 +1117,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
         demotionPlayoff: 1,
         demotions: 1,
       }),
+      withheldResults: 1,
       divisionGroupLabels: new Map(
         DASH_DIVISION_STANDINGS.map((r, i) => [
           r.userId,
@@ -1128,6 +1129,7 @@ const PUBLIC_OVERVIEW: PublicOverview = {
           subDivisionId: "1a",
           name: "Division 1a",
           shortName: "1a",
+          withheldResults: 0,
           standings: DASH_STANDINGS,
           zones: null,
           matches: [
@@ -1183,11 +1185,13 @@ const PUBLIC_OVERVIEW: PublicOverview = {
       divisionStandings: null,
       divisionZones: null,
       divisionGroupLabels: null,
+      withheldResults: 0,
       groups: [
         {
           subDivisionId: "2a",
           name: "Division 2a",
           shortName: "2a",
+          withheldResults: 0,
           standings: DASH_STANDINGS,
           zones: zoneMap(DASH_STANDINGS, {
             champion: 0,
@@ -2337,11 +2341,13 @@ export function Gallery() {
                   divisionStandings: null,
                   divisionZones: null,
                   divisionGroupLabels: null,
+                  withheldResults: 0,
                   groups: [
                     {
                       subDivisionId: "g1",
                       name: "Division 1a",
                       shortName: "1a",
+                      withheldResults: 0,
                       standings: [],
                       zones: null,
                       matches: [
@@ -2410,6 +2416,7 @@ export function Gallery() {
                       subDivisionId: "g2",
                       name: "Division 1b",
                       shortName: "1b",
+                      withheldResults: 0,
                       standings: [],
                       zones: null,
                       matches: [
@@ -2466,6 +2473,7 @@ export function Gallery() {
             })}
             defaultScope="division"
             meId="me"
+            divisionWithheld={1}
             today={DASH_TODAY}
             seasonNumber={9}
           />

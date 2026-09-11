@@ -4,7 +4,9 @@ import { SiteHeader } from "@/components/site-header";
 import { markDropped } from "@/features/drops/drops";
 import { droppedIdsForWindow } from "@/features/drops/queries";
 import { SeasonGates } from "@/features/membership/components/season-gates";
+import { motwForWindow } from "@/features/motw/queries";
 import { getProfile } from "@/features/profile/queries";
+import { holdsForWindow } from "@/features/recordings/queries";
 import { ProfileHint } from "@/features/registration/components/profile-hint";
 import { RegistrationConfirmation } from "@/features/registration/components/registration-confirmation";
 import {
@@ -48,6 +50,10 @@ import {
   subDivisionName,
   subDivisionShortName,
 } from "@/features/seeding/seeding";
+import {
+  publicEmbargoedIds,
+  withoutEmbargoed,
+} from "@/features/spoilers/embargo";
 import { latestWindow } from "@/features/staff/queries";
 import {
   registrationState,
@@ -126,14 +132,45 @@ export default async function SpielerPage() {
 
   if (view === "in_season" && window && placement) {
     const today = germanToday();
-    const [groups, matchdays, rawMatches, resultByMatchId, droppedIds] =
-      await Promise.all([
-        divisionGroups(placement.divisionId),
-        matchdaysForWindow(window.id),
-        subDivisionMatches(placement.subDivisionId),
-        subDivisionResults(placement.subDivisionId),
-        droppedIdsForWindow(window.id),
-      ]);
+    const [
+      rawGroups,
+      matchdays,
+      rawMatches,
+      resultByMatchId,
+      droppedIds,
+      motwSelections,
+      holds,
+    ] = await Promise.all([
+      divisionGroups(placement.divisionId),
+      matchdaysForWindow(window.id),
+      subDivisionMatches(placement.subDivisionId),
+      subDivisionResults(placement.subDivisionId),
+      droppedIdsForWindow(window.id),
+      motwForWindow(window.id),
+      holdsForWindow(window.id),
+    ]);
+
+    // The table counts public results only, for everyone alike: a withheld
+    // result would give itself away through both players' wins and losses
+    // (docs/plans/standings-embargo.md). Own results are no exception, they are
+    // visible on the match page instead.
+    const embargoed = publicEmbargoedIds({ motw: motwSelections, holds });
+    const groups = rawGroups.map((group) => ({
+      ...group,
+      results: withoutEmbargoed(group.results, embargoed),
+    }));
+    const divisionWithheld = rawGroups.reduce(
+      (total, group, index) =>
+        total + (group.results.length - groups[index].results.length),
+      0,
+    );
+    const ownIndex = rawGroups.findIndex(
+      (group) => group.subDivisionId === placement.subDivisionId,
+    );
+    const groupWithheld =
+      ownIndex >= 0
+        ? rawGroups[ownIndex].results.length - groups[ownIndex].results.length
+        : 0;
 
     // The player's own group is one of the division's groups — derive the group
     // roster + standings from it so the group is loaded only once.
@@ -255,6 +292,8 @@ export default async function SpielerPage() {
             divisionGroupLabels={divisionGroupLabels}
             defaultScope={defaultScope}
             meId={current.userId}
+            groupWithheld={groupWithheld}
+            divisionWithheld={divisionWithheld}
             today={today}
             seasonNumber={window.seasonNumber}
           />

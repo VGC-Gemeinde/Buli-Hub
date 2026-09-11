@@ -59,11 +59,15 @@ export function StandingsTable({
   meId,
   zones,
   groupLabels,
+  withheld = 0,
 }: {
   standings: StandingsRow[];
   meId: string;
   zones?: ZoneMap;
   groupLabels?: Map<string, string>;
+  // Results of this table that are under embargo and therefore not counted
+  // yet (docs/plans/standings-embargo.md).
+  withheld?: number;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -172,7 +176,25 @@ export function StandingsTable({
         </table>
       </div>
       <ZoneLegend zones={zones} />
+      <WithheldNote count={withheld} />
     </div>
+  );
+}
+
+// Why the table can be behind the Spielplan: a result that is not public does
+// not count yet (docs/plans/standings-embargo.md). Without the line the table
+// looks wrong rather than deliberate; it gives nothing away, the match row
+// already says that the result is pending.
+function WithheldNote({ count }: { count: number }) {
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <p className="text-[12.5px] text-muted-foreground">
+      {count === 1
+        ? "Ein Ergebnis wird noch zurückgehalten und zählt erst, sobald es veröffentlicht ist."
+        : `${count} Ergebnisse werden noch zurückgehalten und zählen erst, sobald sie veröffentlicht sind.`}
+    </p>
   );
 }
 
@@ -235,6 +257,8 @@ export function StandingsPanel({
   divisionGroupLabels,
   defaultScope,
   meId,
+  groupWithheld = 0,
+  divisionWithheld = 0,
 }: {
   groupName: string;
   groupStandings: StandingsRow[];
@@ -245,6 +269,9 @@ export function StandingsPanel({
   divisionGroupLabels?: Map<string, string>;
   defaultScope: "group" | "division";
   meId: string;
+  // Embargoed results per table, so the note matches the table on screen.
+  groupWithheld?: number;
+  divisionWithheld?: number;
 }) {
   const [scope, setScope] = useState<"group" | "division">(defaultScope);
   const divisionMode = divisionStandings !== null;
@@ -282,12 +309,14 @@ export function StandingsPanel({
           meId={meId}
           zones={divisionZones}
           groupLabels={divisionGroupLabels}
+          withheld={divisionWithheld}
         />
       ) : (
         <StandingsTable
           standings={groupStandings}
           meId={meId}
           zones={groupZones}
+          withheld={groupWithheld}
         />
       )}
     </div>

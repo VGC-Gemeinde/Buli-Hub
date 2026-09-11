@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resultEmbargo, withholdScore } from "./embargo";
+import {
+  publicEmbargoedIds,
+  resultEmbargo,
+  withholdScore,
+  withoutEmbargoed,
+} from "./embargo";
 
 describe("resultEmbargo", () => {
   const noVod = { youtubeUrl: null };
@@ -91,5 +96,32 @@ describe("withholdScore", () => {
       scoreB: null,
       winnerId: null,
     });
+  });
+});
+
+describe("publicEmbargoedIds / withoutEmbargoed", () => {
+  // What a table has to drop: a row can be hidden from one viewer, an
+  // aggregate cannot (docs/plans/standings-embargo.md).
+  it("collects the MotW without a VOD and every hold", () => {
+    const ids = publicEmbargoedIds({
+      motw: [
+        { matchId: "m1", youtubeUrl: null },
+        { matchId: "m2", youtubeUrl: "https://youtu.be/x" },
+      ],
+      holds: [{ matchId: "m3" }],
+    });
+    expect([...ids].sort()).toEqual(["m1", "m3"]);
+  });
+
+  it("is empty without an embargo", () => {
+    expect(publicEmbargoedIds({ motw: [], holds: [] }).size).toBe(0);
+  });
+
+  it("drops exactly those results from a standings input", () => {
+    const results = [{ matchId: "m1" }, { matchId: "m2" }, { matchId: "m3" }];
+    expect(withoutEmbargoed(results, new Set(["m1", "m3"]))).toEqual([
+      { matchId: "m2" },
+    ]);
+    expect(withoutEmbargoed(results, new Set())).toHaveLength(3);
   });
 });

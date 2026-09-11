@@ -22,6 +22,7 @@ const normal = (
 ): ResultForStandings => {
   const loserId = winnerId === playerAId ? playerBId : playerAId;
   return {
+    matchId: `${playerAId}-${playerBId}`,
     playerAId,
     playerBId,
     outcome: "normal",
@@ -73,6 +74,7 @@ describe("computeStandings", () => {
 
   it("a pending free win counts for nobody; a confirmed one is a 2:0 default win", () => {
     const freeWin = (confirmedAt: Date | null): ResultForStandings => ({
+      matchId: "m-a",
       playerAId: "a",
       playerBId: "b",
       outcome: "free_win",
@@ -105,6 +107,7 @@ describe("computeStandings", () => {
       roster,
       results: [
         {
+          matchId: "m-a",
           playerAId: "a",
           playerBId: "b",
           outcome: "double_loss",
@@ -129,6 +132,7 @@ describe("computeStandings", () => {
       roster,
       results: [
         {
+          matchId: "m-a",
           playerAId: "a",
           playerBId: "b",
           outcome: null,
@@ -137,6 +141,7 @@ describe("computeStandings", () => {
           games: [],
         },
         {
+          matchId: "m-c",
           playerAId: "c",
           playerBId: null,
           outcome: null,
@@ -248,6 +253,7 @@ describe("computeStandings", () => {
 describe("computeStandings — head-to-head", () => {
   // A confirmed walkover: a match win with a 2:0 default score.
   const walkover = (winnerId: string, loserId: string): ResultForStandings => ({
+    matchId: `${winnerId}-${loserId}`,
     playerAId: winnerId,
     playerBId: loserId,
     outcome: "free_win",
@@ -363,6 +369,7 @@ describe("computeStandings — head-to-head", () => {
     // a rank in every case.
     const undecided: ResultForStandings[] = [
       {
+        matchId: "m-zoe",
         playerAId: "zoe",
         playerBId: "anna",
         outcome: "double_loss",
@@ -371,6 +378,7 @@ describe("computeStandings — head-to-head", () => {
         games: [],
       },
       {
+        matchId: "m-zoe",
         playerAId: "zoe",
         playerBId: "anna",
         outcome: null,
@@ -379,6 +387,7 @@ describe("computeStandings — head-to-head", () => {
         games: [],
       },
       {
+        matchId: "m-zoe",
         playerAId: "zoe",
         playerBId: "anna",
         outcome: "free_win",

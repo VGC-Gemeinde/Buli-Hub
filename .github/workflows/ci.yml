@@ -25,10 +25,10 @@ jobs:
       SUPABASE_AUTH_EXTERNAL_DISCORD_CLIENT_ID: ci-dummy
       SUPABASE_AUTH_EXTERNAL_DISCORD_SECRET: ci-dummy
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
-          node-version: 24
+          node-version: 24.21.0
           cache: npm
       - run: npm ci
       - run: npx biome ci .
@@ -43,7 +43,7 @@ jobs:
       # reasons unrelated to the code. A pinned tag is downloaded directly, with
       # no API lookup, so CI no longer depends on a shared quota. Bump
       # deliberately; keep it in step with the CLI used locally.
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v1.7.1
         with:
           version: 2.109.0
       - run: supabase start
@@ -76,12 +76,12 @@ jobs:
     env:
       IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}/${{ vars.GCP_SERVICE }}:${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
+      - uses: actions/checkout@v4.4.0
+      - uses: google-github-actions/auth@v2.1.13
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOYER_SA }}
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v2.2.1
       - run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
       - name: Build and push image
         run: |
@@ -92,9 +92,9 @@ jobs:
           docker push "$IMAGE"
       # Migrations ship in the same commit as the code using them (CLAUDE.md);
       # apply them right before the new revision goes live.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.4.0
         with:
-          node-version: 24
+          node-version: 24.21.0
           cache: npm
       - run: npm ci
       # STAGING defines STAGING_DATABASE_URL; PROD does not, so the fallback

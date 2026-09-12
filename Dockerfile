@@ -5,12 +5,12 @@
 # they must be passed as build args (the deploy workflow does), not set on
 # the running container. Server-only secrets are runtime env on Cloud Run.
 
-FROM node:24-alpine AS deps
+FROM node:24.21.0-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:24-alpine AS build
+FROM node:24.21.0-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -25,7 +25,7 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     SUPABASE_SECRET_KEY=build-placeholder
 RUN npm run build
 
-FROM node:24-alpine
+FROM node:24.21.0-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \

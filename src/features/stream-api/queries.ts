@@ -11,7 +11,9 @@ import {
   subDivisions,
   teamSheets,
 } from "@/db/schema";
-import { windowPlayerForm } from "@/features/motw/queries";
+import { motwForWindow, windowPlayerForm } from "@/features/motw/queries";
+import { holdsForWindow } from "@/features/recordings/queries";
+import { publicEmbargoedIds } from "@/features/spoilers/embargo";
 import { db } from "@/lib/db";
 import {
   type MatchInput,
@@ -148,19 +150,33 @@ export async function listStreamMatches(
 
 /**
  * One played match of the season with sheets, photos and both players' season
- * record; null otherwise. The record is the same tally the standings table
- * shows (`windowPlayerForm`), so the stream and the hub never disagree. It
- * counts every decided match of the season, including ones held for a
- * recording: the stream API carries no embargo, and the hold is flagged as
- * `recording` for the caller to act on.
+ * record; null otherwise.
+ *
+ * The record is what each player brings **into** this match: the tally without
+ * this match, and without every other result still under embargo. An overlay
+ * reveals a match game by game, so a record that already counted it would give
+ * the outcome away before the first game is shown — and a record counting the
+ * week's other withheld matches would give those away to the same audience.
+ * The match's own outcome is in `games`, so the stream adds it once it has
+ * played the match out (docs/plans/stream-api.md).
+ *
+ * The result itself is delivered in full: the stream API carries no embargo,
+ * the caller is the broadcast that shows the match, and the hold is flagged as
+ * `recording` for it to act on.
  */
 export async function getStreamMatch(
   windowId: string,
   matchId: string,
 ): Promise<StreamMatchDetail | null> {
+  const [motwSelections, holds] = await Promise.all([
+    motwForWindow(windowId),
+    holdsForWindow(windowId),
+  ]);
+  const excluded = publicEmbargoedIds({ motw: motwSelections, holds });
+  excluded.add(matchId);
   const [inputs, form] = await Promise.all([
     matchInputs(windowId, matchId),
-    windowPlayerForm(windowId),
+    windowPlayerForm(windowId, excluded),
   ]);
   const [input] = inputs;
   if (!input) {

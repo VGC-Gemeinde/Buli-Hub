@@ -52,7 +52,11 @@ GET /api/stream/matches/<id>
 }
 ```
 
-`record` ist die Bilanz des Spielers in der laufenden Saison, dieselbe Zahl wie in der Tabelle und im MotW-Picker (`windowPlayerForm`, also `computeStandings`). Nur das Detail trägt sie: die Liste ist der Match-Picker und bräuchte sonst pro Aufruf eine Tabellenberechnung. Ein Spieler ohne Tabellenzeile, also ohne Platzierung in dieser Saison, liest 0:0. Die Bilanz zählt jedes entschiedene Match der Saison, auch die für eine Aufzeichnung zurückgehaltenen: die Stream-API kennt keinen Spoilerschutz und markiert den Halt stattdessen als `recording`.
+`record` ist die Bilanz, die der Spieler **in dieses Match mitbringt**: die Saisonbilanz ohne dieses Match und ohne jedes andere gerade zurückgehaltene Ergebnis (`windowPlayerForm` mit Ausschlussmenge, also dieselbe Rechnung wie die Tabelle). Nur das Detail trägt sie: die Liste ist der Match-Picker und bräuchte sonst pro Aufruf eine Tabellenberechnung. Ein Spieler ohne Tabellenzeile, also ohne Platzierung in dieser Saison, liest 0:0.
+
+Der Grund für den Ausschluss ist das Overlay, nicht die API: ein Stream deckt ein Match Spiel für Spiel auf, und eine Bilanz, die dieses Match schon mitzählt, verrät den Ausgang vor dem ersten Spiel. Dasselbe gilt für die übrigen zurückgehaltenen Matches der Woche, deren Ergebnisse dasselbe Publikum noch nicht kennt. Der Ausgang dieses Matches steht in `games`, das Stream-Backend addiert ihn, sobald es das Match ausgespielt hat.
+
+Das Ergebnis selbst liefert die API weiterhin vollständig: sie kennt keinen Spoilerschutz, der Aufrufer ist der Stream, der das Match zeigt, und der Halt steht als `recording` im Payload.
 
 `name` über `playerName(displayName, username)`. `photoUrl` ist das Bild, das der Spieler selbst für den Stream hochgeladen hat (`docs/plans/stream-photos.md`), oder null; das Overlay zeigt dann seinen Platzhalter. Der Discord-Avatar wird nicht mehr ausgeliefert: `avatarUrl` ist nur noch als Schlüssel vorhanden und immer null, bis `gemeinde-streams` auf `photoUrl` umgestellt ist. Gruppennamen über `subDivisionName` und `subDivisionShortName`.
 

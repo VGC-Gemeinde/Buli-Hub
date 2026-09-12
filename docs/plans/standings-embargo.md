@@ -65,9 +65,11 @@ participants included, and it counts only public results.
   result pending, and without it the table looks wrong rather than
   deliberate.
 - **The true tally stays where staff already have it**: `windowPlayerForm`
-  (the placement and record in the MotW picker) and the stream API's
-  `record` keep counting everything. The stream airs the match it asks
-  about, and the picker is a staff tool.
+  (the placement and record in the MotW picker) keeps counting everything.
+  The stream API asks the same function for something narrower, the record a
+  player brings *into* the match it is about (`docs/plans/stream-api.md`),
+  because an overlay reveals a match game by game and must not print its
+  outcome next to the players' names beforehand.
 
 **Out:**
 

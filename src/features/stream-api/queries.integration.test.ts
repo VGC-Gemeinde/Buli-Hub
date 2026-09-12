@@ -27,7 +27,9 @@ let played: string; // alice vs bob, 2:1, both sheets, MotW
 let walkover: string; // carol vs dave, free win
 let halfReported: string; // erin vs frank, normal result but one sheet only
 let open: string; // alice vs carol, no result
-let bye: string; // dave
+let bye: string;
+// Round 1, bob beat dave, and staff are still holding it for the stream.
+let otherHeld: string; // dave
 
 // The public URL of a stream photo is built from this; CI sets it for the
 // build step only, so the assertion below would otherwise depend on the
@@ -96,6 +98,7 @@ beforeAll(async () => {
     return row.id;
   };
   open = await insert(1, alice, carol);
+  otherHeld = await insert(1, bob, dave);
   played = await insert(2, alice, bob);
   walkover = await insert(1, carol, dave);
   halfReported = await insert(1, erin, frank);
@@ -121,6 +124,43 @@ beforeAll(async () => {
       { playerId: bob, source: "import", ots: "Whimsicott @ Occa Berry" },
     ],
     alice,
+  );
+  // Round 1: carol beat alice. Public, so it is the one result that counts
+  // towards the record an overlay shows. Only one sheet, so it stays out of
+  // the list like every other match without both.
+  await saveResult(
+    open,
+    {
+      outcome: "normal",
+      winnerId: carol,
+      platform: "showdown",
+      videoUrl: null,
+      freeWinReason: null,
+      discussedWithId: null,
+    },
+    [
+      { gameNumber: 1, winnerId: carol, replayUrl: null },
+      { gameNumber: 2, winnerId: carol, replayUrl: null },
+    ],
+    [{ playerId: carol, source: "import", ots: "Rillaboom @ Assault Vest" }],
+    carol,
+  );
+  await saveResult(
+    otherHeld,
+    {
+      outcome: "normal",
+      winnerId: bob,
+      platform: "showdown",
+      videoUrl: null,
+      freeWinReason: null,
+      discussedWithId: null,
+    },
+    [
+      { gameNumber: 1, winnerId: bob, replayUrl: null },
+      { gameNumber: 2, winnerId: bob, replayUrl: null },
+    ],
+    [{ playerId: bob, source: "import", ots: "Amoonguss @ Rocky Helmet" }],
+    bob,
   );
   await saveResult(
     walkover,
@@ -159,12 +199,10 @@ beforeAll(async () => {
     matchId: played,
     selectedById: alice,
   });
-  await db.insert(recordingHolds).values({
-    matchId: played,
-    windowId,
-    round: 2,
-    heldById: alice,
-  });
+  await db.insert(recordingHolds).values([
+    { matchId: played, windowId, round: 2, heldById: alice },
+    { matchId: otherHeld, windowId, round: 1, heldById: alice },
+  ]);
 });
 
 afterAll(async () => {
@@ -215,11 +253,31 @@ describe("getStreamMatch", () => {
     expect(match?.playerB.avatarUrl).toBeNull();
   });
 
-  it("carries the season record, the same tally the standings show", async () => {
+  it("carries the record each player brings into this match", async () => {
     const match = await getStreamMatch(windowId, played);
-    // Alice won this one, and it is the only decided match either has played.
-    expect(match?.playerA.record).toEqual({ wins: 1, losses: 0 });
-    expect(match?.playerB.record).toEqual({ wins: 0, losses: 1 });
+    // Alice won this one and lost to Carol before it. The overlay reveals a
+    // match game by game, so this one must not be in the record yet: she
+    // brings 0-1 into it, not the 1-1 the true table shows.
+    expect(match?.playerA.record).toEqual({ wins: 0, losses: 1 });
+    // Bob's only other match is held for the stream as well. Counting it
+    // would give that result away to the same audience, so he brings 0-0.
+    expect(match?.playerB.record).toEqual({ wins: 0, losses: 0 });
+    // The result of this match itself is delivered in full, as before.
+    expect(match?.games).toEqual(["a", "b", "a"]);
+  });
+
+  it("counts a released result again", async () => {
+    await db.execute(
+      sql`delete from recording_holds where match_id = ${otherHeld}`,
+    );
+    const match = await getStreamMatch(windowId, played);
+    expect(match?.playerB.record).toEqual({ wins: 1, losses: 0 });
+    await db.insert(recordingHolds).values({
+      matchId: otherHeld,
+      windowId,
+      round: 1,
+      heldById: alice,
+    });
   });
 
   it("is null for everything the list does not show", async () => {

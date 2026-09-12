@@ -13,6 +13,7 @@ import {
   divisionStandings,
 } from "@/features/reporting/standings";
 import { divisionsWithGroupSizes } from "@/features/seeding/queries";
+import { withoutEmbargoed } from "@/features/spoilers/embargo";
 import { db } from "@/lib/db";
 
 export type MotwSelection = {
@@ -144,6 +145,11 @@ export type PlayerForm = {
 // 3" means the same thing in the picker and on the billboard.
 export async function windowPlayerForm(
   windowId: string,
+  // Matches to leave out of the tally. The staff picker passes nothing and
+  // gets the true table; the stream API passes the match it is about plus
+  // everything under embargo, so an overlay shows the record a player brings
+  // *into* the match (docs/plans/stream-api.md).
+  excluded: ReadonlySet<string> = new Set(),
 ): Promise<Map<string, PlayerForm>> {
   const [configs, droppedIds] = await Promise.all([
     divisionsWithGroupSizes(windowId),
@@ -152,7 +158,11 @@ export async function windowPlayerForm(
 
   const tables = await Promise.all(
     configs.map(async (config) => {
-      const groups = await divisionGroups(config.id);
+      const raw = await divisionGroups(config.id);
+      const groups = raw.map((group) => ({
+        ...group,
+        results: withoutEmbargoed(group.results, excluded),
+      }));
       // `divisionStandings` returns null for unequal group sizes even in
       // division mode; the group tables are then the only comparable ones.
       const merged =
